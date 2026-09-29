@@ -1,0 +1,114 @@
+{
+  "policies": [
+    {
+      "SSN": "6666",
+      "policyNumber": "VA6666667",
+      "firstName": "Chandler",
+      "lastName": "Bing",
+      "dateOfBirth": "11/20/2024",
+      "zipCode": "99501",
+      "email": "chandler.bing@example.com",
+      "phone": "9004008000",
+      "id": "10"
+    },
+    {
+      "SSN": "7777",
+      "policyNumber": "VA7788995",
+      "firstName": "Joey",
+      "lastName": "Tribbiani",
+      "dateOfBirth": "11/20/2024",
+      "zipCode": "99501",
+      "email": "joey.tribbiani@example.com",
+      "phone": "9004008001",
+      "id": "11"
+    },
+    {
+      "SSN": "8888",
+      "policyNumber": "VA8899001",
+      "firstName": "Muhammed",
+      "lastName": "Shaan",
+      "dateOfBirth": "05/15/2002",
+      "zipCode": "682001",
+      "email": "muhammed.shaan@example.com",
+      "phone": "9004008002",
+      "id": "12"
+    },
+    {
+      "SSN": "9999",
+      "policyNumber": "VA9900112",
+      "firstName": "Rohit",
+      "lastName": "S",
+      "dateOfBirth": "08/22/2001",
+      "zipCode": "695001",
+      "email": "rohit.s@example.com",
+      "phone": "9004008003",
+      "id": "13"
+    },
+    {
+      "SSN": "1234",
+      "policyNumber": "VA1122334",
+      "firstName": "Nahal",
+      "lastName": "M",
+      "dateOfBirth": "03/10/2002",
+      "zipCode": "695014",
+      "email": "nahal.m@example.com",
+      "phone": "9004008004",
+      "id": "14"
+    },
+    {
+      "SSN": "2345",
+      "policyNumber": "VA2233445",
+      "firstName": "Arjun",
+      "lastName": "Menon",
+      "dateOfBirth": "12/05/2000",
+      "zipCode": "682016",
+      "email": "arjun.menon@example.com",
+      "phone": "9004008005",
+      "id": "15"
+    },
+    {
+      "SSN": "3456",
+      "policyNumber": "VA3344556",
+      "firstName": "Aditya",
+      "lastName": "Nair",
+      "dateOfBirth": "07/18/1999",
+      "zipCode": "695033",
+      "email": "aditya.nair@example.com",
+      "phone": "9004008006",
+      "id": "16"
+    },
+    {
+      "SSN": "4567",
+      "policyNumber": "VA4455667",
+      "firstName": "Rahul",
+      "lastName": "Krishnan",
+      "dateOfBirth": "01/25/2001",
+      "zipCode": "673001",
+      "email": "rahul.krishnan@example.com",
+      "phone": "9004008007",
+      "id": "17"
+    },
+    {
+      "SSN": "5678",
+      "policyNumber": "VA5566778",
+      "firstName": "Ananya",
+      "lastName": "Thomas",
+      "dateOfBirth": "09/12/2003",
+      "zipCode": "682030",
+      "email": "ananya.thomas@example.com",
+      "phone": "9004008008",
+      "id": "18"
+    },
+    {
+      "SSN": "6789",
+      "policyNumber": "VA6677889",
+      "firstName": "Vishnu",
+      "lastName": "Kumar",
+      "dateOfBirth": "04/30/2000",
+      "zipCode": "695004",
+      "email": "vishnu.kumar@example.com",
+      "phone": "9004008009",
+      "id": "19"
+    }
+  ]
+}
