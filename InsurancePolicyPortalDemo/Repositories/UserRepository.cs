@@ -163,6 +163,57 @@ public class UserRepository : IUserRepository
     }
 
 
+    // Find a user by policy number.
+    // This is used to make sure only one account
+    // can be created for each policy number.
+    public async Task<User?> GetByPolicyNumberAsync(
+        string policyNumber)
+    {
+        if (!File.Exists(_filePath))
+        {
+            return null;
+        }
+
+        using var stream = new FileStream(
+            _filePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite
+        );
+
+        using var reader = new StreamReader(stream);
+
+        string? line;
+
+        while ((line = await reader.ReadLineAsync()) != null)
+        {
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            var user =
+                JsonSerializer.Deserialize<User>(
+                    line,
+                    _jsonOptions
+                );
+
+            if (
+                user != null &&
+                user.PolicyNumber.Equals(
+                    policyNumber,
+                    StringComparison.OrdinalIgnoreCase
+                )
+            )
+            {
+                return user;
+            }
+        }
+
+        return null;
+    }
+
+
     // Add a new user by appending one JSON object
     // to the end of the file.
     public async Task<User> AddAsync(User user)

@@ -38,7 +38,22 @@ builder.Services.AddScoped<
     UserService
 >();
 
+// CORS - Allow Next.js frontend
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("NextJsPolicy", policy =>
+    {
+        policy
+            .WithOrigins("http://localhost:3000")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
+
+// CORS
+app.UseCors("NextJsPolicy");
 
 app.UseSwagger();
 app.UseSwaggerUI();

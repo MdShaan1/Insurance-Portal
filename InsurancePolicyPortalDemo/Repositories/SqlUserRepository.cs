@@ -122,6 +122,22 @@ public class SqlUserRepository : IUserRepository
             : MapToModel(entity);
     }
 
+    // Get user by Policy Number
+    public async Task<User?> GetByPolicyNumberAsync(
+        string policyNumber)
+    {
+        var entity =
+            await _context.Users
+                .Include(u => u.SecurityQuestions)
+                .FirstOrDefaultAsync(
+                    u => u.PolicyNumber == policyNumber
+                );
+
+        return entity == null
+            ? null
+            : MapToModel(entity);
+    }
+
     public async Task<User> AddAsync(User user)
     {
         if (user.Id == Guid.Empty)

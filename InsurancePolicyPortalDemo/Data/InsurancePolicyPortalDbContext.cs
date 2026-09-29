@@ -49,6 +49,7 @@ public class InsurancePolicyPortalDbContext : DbContext
             .IsUnique();
 
         modelBuilder.Entity<UserEntity>()
-            .HasIndex(u => u.PolicyNumber);
+            .HasIndex(u => u.PolicyNumber)
+            .IsUnique();
     }
 }

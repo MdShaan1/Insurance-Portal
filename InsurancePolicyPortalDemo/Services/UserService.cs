@@ -98,6 +98,22 @@ public class UserService : IUserService
         }
 
 
+        // Check if an account already exists
+        // for this policy number
+
+        var existingAccount =
+            await _userRepository.GetByPolicyNumberAsync(
+                personalInformation.PolicyNumber.Trim()
+            );
+
+        if (existingAccount != null)
+        {
+            throw new InvalidOperationException(
+                "An account has already been created for this policy number."
+            );
+        }
+
+
         // Check username uniqueness
 
         var existingUser =
@@ -193,7 +209,7 @@ public class UserService : IUserService
             );
 
 
-        // Save user to users.json
+        // Save user to database/repository
 
         var createdUser =
             await _userRepository.AddAsync(user);

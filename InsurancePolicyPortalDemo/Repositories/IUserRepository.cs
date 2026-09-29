@@ -10,6 +10,8 @@ public interface IUserRepository
 
     Task<User?> GetByUsernameAsync(string username);
 
+    Task<User?> GetByPolicyNumberAsync(string policyNumber);
+
     Task<User> AddAsync(User user);
 
     Task<User> UpdateAsync(User user);
