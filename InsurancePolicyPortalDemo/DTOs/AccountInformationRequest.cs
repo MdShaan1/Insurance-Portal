@@ -1,7 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
 namespace InsurancePolicyPortalDemo.DTOs;
-
 public class AccountInformationRequest : IValidatableObject
 {
     [Required]
@@ -14,8 +13,6 @@ public class AccountInformationRequest : IValidatableObject
     [Required]
     [Compare("Password", ErrorMessage = "Password and Confirm Password must match.")]
     public string ConfirmPassword { get; set; } = string.Empty;
-
-
     public IEnumerable<ValidationResult> Validate(
         ValidationContext validationContext)
     {
@@ -23,7 +20,6 @@ public class AccountInformationRequest : IValidatableObject
         {
             yield break;
         }
-
         if (!Password.Any(char.IsUpper))
         {
             yield return new ValidationResult(
@@ -31,7 +27,6 @@ public class AccountInformationRequest : IValidatableObject
                 new[] { nameof(Password) }
             );
         }
-
         if (!Password.Any(char.IsLower))
         {
             yield return new ValidationResult(
@@ -39,7 +34,6 @@ public class AccountInformationRequest : IValidatableObject
                 new[] { nameof(Password) }
             );
         }
-
         if (!Password.Any(
             character => "@#$%!".Contains(character)))
         {

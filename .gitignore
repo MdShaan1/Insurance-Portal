@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+**/.vs/
+*.user
+*.suo
+**/node_modules/
+**/.next/
+**/out/
+**/.env*
+!**/.env.example
+/package-lock.json

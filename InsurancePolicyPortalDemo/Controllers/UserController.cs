@@ -8,15 +8,11 @@ namespace InsurancePolicyPortalDemo.Controllers;
 [Route("api/[controller]")]
 public class UserController : ControllerBase
 {
-    private readonly IUserService _userService;
-
-
+        private readonly IUserService _userService;
     public UserController(IUserService userService)
     {
         _userService = userService;
     }
-
-
     [HttpPost("verify-policyholder")]
     public async Task<IActionResult> VerifyPolicyHolder(
         [FromBody] PersonalInformationRequest request)
@@ -25,8 +21,6 @@ public class UserController : ControllerBase
             await _userService.VerifyPolicyHolderAsync(
                 request
             );
-
-
         if (!isValid)
         {
             return BadRequest(new
@@ -35,16 +29,12 @@ public class UserController : ControllerBase
                     "Policyholder details could not be verified."
             });
         }
-
-
         return Ok(new
         {
             message =
                 "Policyholder verified successfully. You can continue registration."
         });
     }
-
-
     [HttpPost("SignUp")]
     public async Task<IActionResult> Register(
         [FromBody] RegistrationRequest request)
@@ -58,8 +48,6 @@ public class UserController : ControllerBase
                     request.SecurityInformation,
                     request.ContactInformation
                 );
-
-
             return Ok(user);
         }
         catch (InvalidOperationException ex)
@@ -70,16 +58,12 @@ public class UserController : ControllerBase
             });
         }
     }
-
-
     [HttpPost("login")]
     public async Task<IActionResult> Login(
         [FromBody] UserLoginRequest request)
     {
         var user =
             await _userService.LoginAsync(request);
-
-
         if (user == null)
         {
             return Unauthorized(new
@@ -88,8 +72,6 @@ public class UserController : ControllerBase
                     "Invalid username or password."
             });
         }
-
-
         return Ok(user);
     }
 }

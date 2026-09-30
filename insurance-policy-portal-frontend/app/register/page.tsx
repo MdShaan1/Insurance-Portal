@@ -1,26 +1,104 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
+
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import PasswordInput from "@/components/PasswordInput";
+
 import {
   verifyPolicyholder,
   signUp,
-  type RegistrationRequest,
-  type PolicyholderVerificationRequest,
 } from "@/src/lib/api";
 
-type Step =
-  | "personal"
-  | "account"
-  | "security"
-  | "contact"
-  | "success";
+type Step = 1 | 2 | 3 | 4;
+
+interface PersonalInfo {
+  ssn: string;
+  policyNumber: string;
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
+  zipCode: string;
+}
+
+interface AccountInfo {
+  username: string;
+  password: string;
+  confirmPassword: string;
+}
+
+interface SecurityInfo {
+  petName: string;
+  childhoodFriendName: string;
+}
+
+interface ContactInfo {
+  email: string;
+  phone: string;
+  streetAddress: string;
+  streetAddressLine2: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+}
+
+interface TouchedFields {
+  [key: string]: boolean;
+}
+
+/*
+ * Required field indicator.
+ */
+function RequiredMark() {
+  return (
+    <span className="text-red-600">
+      *
+    </span>
+  );
+}
+
+/*
+ * Password requirement component.
+ *
+ * Green = requirement satisfied
+ * Red = requirement not satisfied
+ */
+function PasswordRequirement({
+  valid,
+  text,
+}: {
+  valid: boolean;
+  text: string;
+}) {
+  return (
+    <div
+      className={`flex items-center gap-2 text-sm ${
+        valid
+          ? "text-green-600"
+          : "text-red-600"
+      }`}
+    >
+      <span className="text-base font-bold">
+        {valid ? "✓" : "✗"}
+      </span>
+
+      <span>{text}</span>
+    </div>
+  );
+}
 
 export default function RegisterPage() {
-  const [step, setStep] = useState<Step>("personal");
+  const [currentStep, setCurrentStep] =
+    useState<Step>(1);
 
-  const [personal, setPersonal] =
-    useState<PolicyholderVerificationRequest>({
+  // --------------------------------------------------
+  // Form State
+  // --------------------------------------------------
+
+  const [personalInfo, setPersonalInfo] =
+    useState<PersonalInfo>({
       ssn: "",
       policyNumber: "",
       firstName: "",
@@ -29,1030 +107,1624 @@ export default function RegisterPage() {
       zipCode: "",
     });
 
-  const [account, setAccount] = useState({
-    username: "",
-    password: "",
-    confirmPassword: "",
-  });
+  const [accountInfo, setAccountInfo] =
+    useState<AccountInfo>({
+      username: "",
+      password: "",
+      confirmPassword: "",
+    });
 
-  const [security, setSecurity] = useState({
-    petName: "",
-    childhoodFriendName: "",
-  });
+  const [securityInfo, setSecurityInfo] =
+    useState<SecurityInfo>({
+      petName: "",
+      childhoodFriendName: "",
+    });
 
-  const [contact, setContact] = useState({
-    email: "",
-    phone: "",
-    streetAddress: "",
-    streetAddressLine2: "",
-    city: "",
-    state: "",
-    zipCode: "",
-    country: "",
-  });
+  const [contactInfo, setContactInfo] =
+    useState<ContactInfo>({
+      email: "",
+      phone: "",
+      streetAddress: "",
+      streetAddressLine2: "",
+      city: "",
+      state: "",
+      zipCode: "",
+      country: "",
+    });
 
-  const [error, setError] = useState("");
-  const [, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
+  // --------------------------------------------------
+  // UI State
+  // --------------------------------------------------
 
-  async function handleVerify() {
-    setError("");
-    setMessage("");
+  const [touched, setTouched] =
+    useState<TouchedFields>({});
 
-    if (
-      !personal.ssn ||
-      !personal.policyNumber ||
-      !personal.firstName ||
-      !personal.lastName ||
-      !personal.dateOfBirth ||
-      !personal.zipCode
-    ) {
-      setError("Please complete all policyholder fields.");
-      return;
-    }
+  const [isVerifying, setIsVerifying] =
+    useState(false);
 
-    try {
-      setLoading(true);
+  const [isRegistering, setIsRegistering] =
+    useState(false);
 
-      await verifyPolicyholder({
-        ...personal,
-        ssn: personal.ssn.trim(),
-        policyNumber: personal.policyNumber.trim(),
-        firstName: personal.firstName.trim(),
-        lastName: personal.lastName.trim(),
-        dateOfBirth: personal.dateOfBirth.trim(),
-        zipCode: personal.zipCode.trim(),
+  const [errorMessage, setErrorMessage] =
+    useState("");
+
+  const [success, setSuccess] =
+    useState(false);
+
+  // --------------------------------------------------
+  // Helpers
+  // --------------------------------------------------
+
+  const markTouched = (field: string) => {
+    setTouched((previous) => ({
+      ...previous,
+      [field]: true,
+    }));
+  };
+
+  const markFieldsTouched = (
+    fields: string[]
+  ) => {
+    setTouched((previous) => {
+      const updated = { ...previous };
+
+      fields.forEach((field) => {
+        updated[field] = true;
       });
 
-      setStep("account");
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Policyholder verification failed."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
+      return updated;
+    });
+  };
 
-  function handleAccountContinue() {
-    setError("");
+  const inputClass = (
+    hasError: boolean
+  ) => {
+    if (hasError) {
+      return "w-full rounded-lg border border-red-500 bg-white px-4 py-3 text-gray-900 outline-none ring-1 ring-red-500 transition";
+    }
+
+    return "w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+  };
+
+  // --------------------------------------------------
+  // Step 1 Validation
+  // --------------------------------------------------
+
+  const personalErrors = {
+    ssn:
+      touched.ssn &&
+      !/^\d{4}$/.test(
+        personalInfo.ssn
+      ),
+
+    policyNumber:
+      touched.policyNumber &&
+      !personalInfo.policyNumber.trim(),
+
+    firstName:
+      touched.firstName &&
+      !personalInfo.firstName.trim(),
+
+    lastName:
+      touched.lastName &&
+      !personalInfo.lastName.trim(),
+
+    dateOfBirth:
+      touched.dateOfBirth &&
+      !personalInfo.dateOfBirth.trim(),
+
+    zipCode:
+      touched.zipCode &&
+      !personalInfo.zipCode.trim(),
+  };
+
+  const validatePersonalStep = () => {
+    markFieldsTouched([
+      "ssn",
+      "policyNumber",
+      "firstName",
+      "lastName",
+      "dateOfBirth",
+      "zipCode",
+    ]);
 
     if (
-      !account.username ||
-      !account.password ||
-      !account.confirmPassword
+      !/^\d{4}$/.test(
+        personalInfo.ssn
+      )
     ) {
-      setError("Please complete all account fields.");
-      return;
+      return false;
     }
-
-    if (account.password !== account.confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-
-    if (account.password.length < 8) {
-      setError("Password must contain at least 8 characters.");
-      return;
-    }
-
-    if (!/[A-Z]/.test(account.password)) {
-      setError(
-        "Password must contain at least one uppercase letter."
-      );
-      return;
-    }
-
-    if (!/[a-z]/.test(account.password)) {
-      setError(
-        "Password must contain at least one lowercase letter."
-      );
-      return;
-    }
-
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(account.password)) {
-      setError(
-        "Password must contain at least one special character."
-      );
-      return;
-    }
-
-    setStep("security");
-  }
-
-  function handleSecurityContinue() {
-    setError("");
 
     if (
-      !security.petName ||
-      !security.childhoodFriendName
+      !personalInfo.policyNumber.trim()
     ) {
-      setError("Please answer both security questions.");
-      return;
+      return false;
     }
-
-    setStep("contact");
-  }
-
-  async function handleCreateAccount() {
-    setError("");
-    setMessage("");
 
     if (
-      !contact.email ||
-      !contact.phone ||
-      !contact.streetAddress ||
-      !contact.city ||
-      !contact.state ||
-      !contact.zipCode ||
-      !contact.country
+      !personalInfo.firstName.trim()
     ) {
-      setError("Please complete all required contact fields.");
-      return;
+      return false;
     }
 
-    const registrationData: RegistrationRequest = {
-      personalInformation: {
-        ...personal,
-      },
+    if (
+      !personalInfo.lastName.trim()
+    ) {
+      return false;
+    }
 
-      accountInformation: {
-        ...account,
-      },
+    if (
+      !personalInfo.dateOfBirth.trim()
+    ) {
+      return false;
+    }
 
-      securityInformation: {
-        ...security,
-      },
+    if (
+      !personalInfo.zipCode.trim()
+    ) {
+      return false;
+    }
 
-      contactInformation: {
-        ...contact,
-      },
+    return true;
+  };
+
+  // --------------------------------------------------
+  // Password Validation
+  // --------------------------------------------------
+
+  const passwordRequirements = {
+    minLength:
+      accountInfo.password.length >= 8,
+
+    uppercase:
+      /[A-Z]/.test(
+        accountInfo.password
+      ),
+
+    lowercase:
+      /[a-z]/.test(
+        accountInfo.password
+      ),
+
+    special:
+      /[^A-Za-z0-9]/.test(
+        accountInfo.password
+      ),
+  };
+
+  const passwordIsValid =
+    passwordRequirements.minLength &&
+    passwordRequirements.uppercase &&
+    passwordRequirements.lowercase &&
+    passwordRequirements.special;
+
+  const passwordMismatch =
+    accountInfo.confirmPassword.length >
+      0 &&
+    accountInfo.password !==
+      accountInfo.confirmPassword;
+
+  const accountErrors = {
+    username:
+      touched.username &&
+      !accountInfo.username.trim(),
+
+    password:
+      touched.password &&
+      !passwordIsValid,
+
+    confirmPassword:
+      touched.confirmPassword &&
+      (!accountInfo.confirmPassword.trim() ||
+        passwordMismatch),
+  };
+
+  const validateAccountStep = () => {
+    markFieldsTouched([
+      "username",
+      "password",
+      "confirmPassword",
+    ]);
+
+    if (
+      !accountInfo.username.trim()
+    ) {
+      return false;
+    }
+
+    if (!passwordIsValid) {
+      return false;
+    }
+
+    if (
+      !accountInfo.confirmPassword.trim()
+    ) {
+      return false;
+    }
+
+    if (
+      accountInfo.password !==
+      accountInfo.confirmPassword
+    ) {
+      return false;
+    }
+
+    return true;
+  };
+
+  // --------------------------------------------------
+  // Step 3 Validation
+  // --------------------------------------------------
+
+  const securityErrors = {
+    petName:
+      touched.petName &&
+      !securityInfo.petName.trim(),
+
+    childhoodFriendName:
+      touched.childhoodFriendName &&
+      !securityInfo.childhoodFriendName.trim(),
+  };
+
+  const validateSecurityStep = () => {
+    markFieldsTouched([
+      "petName",
+      "childhoodFriendName",
+    ]);
+
+    if (
+      !securityInfo.petName.trim()
+    ) {
+      return false;
+    }
+
+    if (
+      !securityInfo.childhoodFriendName.trim()
+    ) {
+      return false;
+    }
+
+    return true;
+  };
+
+  // --------------------------------------------------
+  // Step 4 Validation
+  // --------------------------------------------------
+
+  const emailIsValid =
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+      contactInfo.email
+    );
+
+  const contactErrors = {
+    email:
+      touched.email &&
+      (!contactInfo.email.trim() ||
+        !emailIsValid),
+
+    phone:
+      touched.phone &&
+      !contactInfo.phone.trim(),
+
+    streetAddress:
+      touched.streetAddress &&
+      !contactInfo.streetAddress.trim(),
+
+    city:
+      touched.city &&
+      !contactInfo.city.trim(),
+
+    state:
+      touched.state &&
+      !contactInfo.state.trim(),
+
+    zipCode:
+      touched.zipCodeContact &&
+      !contactInfo.zipCode.trim(),
+
+    country:
+      touched.country &&
+      !contactInfo.country.trim(),
+  };
+
+  const validateContactStep = () => {
+    markFieldsTouched([
+      "email",
+      "phone",
+      "streetAddress",
+      "city",
+      "state",
+      "zipCodeContact",
+      "country",
+    ]);
+
+    if (!contactInfo.email.trim()) {
+      return false;
+    }
+
+    if (!emailIsValid) {
+      return false;
+    }
+
+    if (!contactInfo.phone.trim()) {
+      return false;
+    }
+
+    if (
+      !contactInfo.streetAddress.trim()
+    ) {
+      return false;
+    }
+
+    if (!contactInfo.city.trim()) {
+      return false;
+    }
+
+    if (!contactInfo.state.trim()) {
+      return false;
+    }
+
+    if (!contactInfo.zipCode.trim()) {
+      return false;
+    }
+
+    if (!contactInfo.country.trim()) {
+      return false;
+    }
+
+    return true;
+  };
+
+  // --------------------------------------------------
+  // Policyholder Verification
+  // --------------------------------------------------
+
+  const handleVerifyPolicyholder =
+    async () => {
+      setErrorMessage("");
+
+      if (!validatePersonalStep()) {
+        return;
+      }
+
+      try {
+        setIsVerifying(true);
+
+        await verifyPolicyholder({
+          ssn: personalInfo.ssn.trim(),
+
+          policyNumber:
+            personalInfo.policyNumber.trim(),
+
+          firstName:
+            personalInfo.firstName.trim(),
+
+          lastName:
+            personalInfo.lastName.trim(),
+
+          dateOfBirth:
+            personalInfo.dateOfBirth.trim(),
+
+          zipCode:
+            personalInfo.zipCode.trim(),
+        });
+
+        setCurrentStep(2);
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Policyholder verification failed."
+        );
+      } finally {
+        setIsVerifying(false);
+      }
     };
 
-    try {
-      setLoading(true);
+  // --------------------------------------------------
+  // Next
+  // --------------------------------------------------
 
-      await signUp(registrationData);
+  const handleNext = () => {
+    setErrorMessage("");
 
-      setStep("success");
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Registration failed."
-      );
-    } finally {
-      setLoading(false);
+    if (currentStep === 1) {
+      handleVerifyPolicyholder();
+      return;
     }
-  }
 
-  if (step === "success") {
+    if (currentStep === 2) {
+      if (validateAccountStep()) {
+        setCurrentStep(3);
+      }
+
+      return;
+    }
+
+    if (currentStep === 3) {
+      if (validateSecurityStep()) {
+        setCurrentStep(4);
+      }
+
+      return;
+    }
+  };
+
+  // --------------------------------------------------
+  // Previous
+  // --------------------------------------------------
+
+  const handlePrevious = () => {
+    setErrorMessage("");
+
+    if (currentStep > 1) {
+      setCurrentStep(
+        (currentStep - 1) as Step
+      );
+    }
+  };
+
+  // --------------------------------------------------
+  // Final Registration
+  // --------------------------------------------------
+
+  const handleRegistration =
+    async () => {
+      setErrorMessage("");
+
+      if (!validateContactStep()) {
+        return;
+      }
+
+      try {
+        setIsRegistering(true);
+
+        await signUp({
+          personalInformation: {
+            ssn: personalInfo.ssn.trim(),
+
+            policyNumber:
+              personalInfo.policyNumber.trim(),
+
+            firstName:
+              personalInfo.firstName.trim(),
+
+            lastName:
+              personalInfo.lastName.trim(),
+
+            dateOfBirth:
+              personalInfo.dateOfBirth.trim(),
+
+            zipCode:
+              personalInfo.zipCode.trim(),
+          },
+
+          accountInformation: {
+            username:
+              accountInfo.username.trim(),
+
+            password:
+              accountInfo.password,
+
+            confirmPassword:
+              accountInfo.confirmPassword,
+          },
+
+          securityInformation: {
+            petName:
+              securityInfo.petName.trim(),
+
+            childhoodFriendName:
+              securityInfo.childhoodFriendName.trim(),
+          },
+
+          contactInformation: {
+            email:
+              contactInfo.email.trim(),
+
+            phone:
+              contactInfo.phone.trim(),
+
+            streetAddress:
+              contactInfo.streetAddress.trim(),
+
+            streetAddressLine2:
+              contactInfo.streetAddressLine2.trim(),
+
+            city:
+              contactInfo.city.trim(),
+
+            state:
+              contactInfo.state.trim(),
+
+            zipCode:
+              contactInfo.zipCode.trim(),
+
+            country:
+              contactInfo.country.trim(),
+          },
+        });
+
+        setSuccess(true);
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Registration failed. Please try again."
+        );
+      } finally {
+        setIsRegistering(false);
+      }
+    };
+
+  // --------------------------------------------------
+  // SUCCESS PAGE
+  // --------------------------------------------------
+
+  if (success) {
     return (
-      <main className="min-h-screen bg-slate-50 text-slate-900">
-        <Header active="register" />
+      <main className="min-h-screen bg-gray-50">
+        <Header />
 
-        <section className="flex min-h-[75vh] items-center justify-center px-6 py-14">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={2}
-                stroke="currentColor"
-                className="h-8 w-8 text-green-600"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
+        <div className="flex min-h-[calc(100vh-145px)] items-center justify-center px-6 py-12">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-10 text-center shadow-lg">
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+              <span className="text-3xl text-green-600">
+                ✓
+              </span>
             </div>
 
-            <h2 className="mt-6 text-3xl font-bold text-slate-900">
+            <h1 className="text-3xl font-bold text-gray-900">
               Registration Successful
-            </h2>
+            </h1>
 
-            <p className="mt-3 leading-7 text-slate-600">
-              Your policyholder account has been created
-              successfully. You can now sign in using your
-              username and password.
+            <p className="mt-4 text-gray-600">
+              Your Customer Portal account has
+              been created successfully.
             </p>
 
-            <Link
+            <p className="mt-2 text-sm text-gray-500">
+              You can now use your username and
+              password to log in.
+            </p>
+
+            <a
               href="/login"
-              className="mt-8 inline-block rounded-lg bg-blue-600 px-8 py-3.5 font-semibold text-white transition hover:bg-blue-700"
+              className="mt-8 inline-block rounded-lg bg-blue-600 px-8 py-3 font-semibold text-white transition hover:bg-blue-700"
             >
               Go to Login
-            </Link>
-
-            <div className="mt-5">
-              <Link
-                href="/"
-                className="text-sm font-medium text-slate-500 hover:text-blue-600"
-              >
-                Back to Home
-              </Link>
-            </div>
+            </a>
           </div>
-        </section>
+        </div>
 
         <Footer />
       </main>
     );
   }
 
+  // --------------------------------------------------
+  // MAIN REGISTER PAGE
+  // --------------------------------------------------
+
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
-      <Header active="register" />
+    <main className="min-h-screen bg-gray-50">
+      <Header />
 
-      <section className="mx-auto max-w-5xl px-6 py-12">
-        {/* Page heading */}
-        <div className="mb-10 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.8}
-              stroke="currentColor"
-              className="h-7 w-7"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M15 19.128a9.38 9.38 0 003.142-1.4 4.5 4.5 0 00-8.284 0A9.38 9.38 0 0015 19.128z"
-              />
+      <div className="mx-auto max-w-4xl px-6 py-10">
+        {/* Heading */}
 
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 14.25a3.75 3.75 0 100-7.5 3.75 3.75 0 000 7.5z"
-              />
-            </svg>
-          </div>
-
-          <h2 className="text-3xl font-bold text-slate-900">
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-bold text-gray-900">
             Create Your Account
-          </h2>
+          </h1>
 
-          <p className="mt-2 text-slate-600">
-            Register securely using your existing policy information.
+          <p className="mt-2 text-gray-600">
+            Register for your Insurance Policy
+            Portal account.
           </p>
         </div>
 
         {/* Progress */}
-        <ProgressBar step={step} />
 
-        {/* Error */}
-        {error && (
-          <div className="mx-auto mb-6 max-w-3xl rounded-lg border border-red-200 bg-red-50 p-4">
-            <p className="font-medium text-red-800">
-              {error}
-            </p>
+        <div className="mb-10">
+          <div className="flex items-center justify-between">
+            {[1, 2, 3, 4].map(
+              (step, index) => (
+                <div
+                  key={step}
+                  className="flex flex-1 items-center"
+                >
+                  <div className="flex flex-col items-center">
+                    <div
+                      className={`flex h-10 w-10 items-center justify-center rounded-full font-semibold ${
+                        currentStep >= step
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-200 text-gray-500"
+                      }`}
+                    >
+                      {currentStep > step
+                        ? "✓"
+                        : step}
+                    </div>
+
+                    <span
+                      className={`mt-2 text-xs font-medium ${
+                        currentStep >= step
+                          ? "text-blue-600"
+                          : "text-gray-500"
+                      }`}
+                    >
+                      {step === 1 &&
+                        "Personal"}
+
+                      {step === 2 &&
+                        "Account"}
+
+                      {step === 3 &&
+                        "Security"}
+
+                      {step === 4 &&
+                        "Contact"}
+                    </span>
+                  </div>
+
+                  {index < 3 && (
+                    <div
+                      className={`mx-3 h-1 flex-1 rounded ${
+                        currentStep > step
+                          ? "bg-blue-600"
+                          : "bg-gray-200"
+                      }`}
+                    />
+                  )}
+                </div>
+              )
+            )}
+          </div>
+        </div>
+
+        {/* API Error */}
+
+        {errorMessage && (
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {errorMessage}
           </div>
         )}
 
-        {/* Form card */}
-        <div className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm md:p-10">
-          {step === "personal" && (
-            <PersonalStep
-              personal={personal}
-              setPersonal={setPersonal}
-              onContinue={handleVerify}
-              loading={loading}
-            />
+        {/* Form Card */}
+
+        <div className="rounded-2xl bg-white p-8 shadow-lg">
+          {/* ==========================================
+              STEP 1
+          ========================================== */}
+
+          {currentStep === 1 && (
+            <section>
+              <div className="mb-7">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Personal Information
+                </h2>
+
+                <p className="mt-2 text-sm text-gray-600">
+                  Enter your information exactly as
+                  it appears on your insurance policy.
+                </p>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-2">
+                {/* SSN */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-900">
+                    Last 4 Digits of SSN{" "}
+                    <RequiredMark />
+                  </label>
+
+                  <input
+                    type="text"
+                    maxLength={4}
+                    value={personalInfo.ssn}
+                    onChange={(event) => {
+                      const value =
+                        event.target.value.replace(
+                          /\D/g,
+                          ""
+                        );
+
+                      setPersonalInfo({
+                        ...personalInfo,
+                        ssn: value,
+                      });
+                    }}
+                    onBlur={() =>
+                      markTouched("ssn")
+                    }
+                    placeholder="Enter 4 digits"
+                    className={inputClass(
+                      !!personalErrors.ssn
+                    )}
+                  />
+
+                  {touched.ssn &&
+                    !personalInfo.ssn && (
+                      <p className="mt-1 text-sm text-red-600">
+                        Please enter the last 4
+                        digits of SSN.
+                      </p>
+                    )}
+
+                  {touched.ssn &&
+                    personalInfo.ssn &&
+                    !/^\d{4}$/.test(
+                      personalInfo.ssn
+                    ) && (
+                      <p className="mt-1 text-sm text-red-600">
+                        SSN must contain exactly 4
+                        digits.
+                      </p>
+                    )}
+                </div>
+
+                {/* Policy Number */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-900">
+                    Policy Number{" "}
+                    <RequiredMark />
+                  </label>
+
+                  <input
+                    type="text"
+                    value={
+                      personalInfo.policyNumber
+                    }
+                    onChange={(event) =>
+                      setPersonalInfo({
+                        ...personalInfo,
+                        policyNumber:
+                          event.target.value,
+                      })
+                    }
+                    onBlur={() =>
+                      markTouched(
+                        "policyNumber"
+                      )
+                    }
+                    placeholder="Enter policy number"
+                    className={inputClass(
+                      !!personalErrors.policyNumber
+                    )}
+                  />
+
+                  {personalErrors.policyNumber && (
+                    <p className="mt-1 text-sm text-red-600">
+                      Please enter Policy Number.
+                    </p>
+                  )}
+                </div>
+
+                {/* First Name */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-900">
+                    First Name{" "}
+                    <RequiredMark />
+                  </label>
+
+                  <input
+                    type="text"
+                    value={
+                      personalInfo.firstName
+                    }
+                    onChange={(event) =>
+                      setPersonalInfo({
+                        ...personalInfo,
+                        firstName:
+                          event.target.value,
+                      })
+                    }
+                    onBlur={() =>
+                      markTouched("firstName")
+                    }
+                    placeholder="Enter first name"
+                    className={inputClass(
+                      !!personalErrors.firstName
+                    )}
+                  />
+
+                  {personalErrors.firstName && (
+                    <p className="mt-1 text-sm text-red-600">
+                      Please enter First Name.
+                    </p>
+                  )}
+                </div>
+
+                {/* Last Name */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-900">
+                    Last Name{" "}
+                    <RequiredMark />
+                  </label>
+
+                  <input
+                    type="text"
+                    value={
+                      personalInfo.lastName
+                    }
+                    onChange={(event) =>
+                      setPersonalInfo({
+                        ...personalInfo,
+                        lastName:
+                          event.target.value,
+                      })
+                    }
+                    onBlur={() =>
+                      markTouched("lastName")
+                    }
+                    placeholder="Enter last name"
+                    className={inputClass(
+                      !!personalErrors.lastName
+                    )}
+                  />
+
+                  {personalErrors.lastName && (
+                    <p className="mt-1 text-sm text-red-600">
+                      Please enter Last Name.
+                    </p>
+                  )}
+                </div>
+
+                {/* Date of Birth */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-900">
+                    Date of Birth{" "}
+                    <RequiredMark />
+                  </label>
+
+                  <input
+                    type="text"
+                    value={
+                      personalInfo.dateOfBirth
+                    }
+                    onChange={(event) =>
+                      setPersonalInfo({
+                        ...personalInfo,
+                        dateOfBirth:
+                          event.target.value,
+                      })
+                    }
+                    onBlur={() =>
+                      markTouched(
+                        "dateOfBirth"
+                      )
+                    }
+                    placeholder="MM/DD/YYYY"
+                    className={inputClass(
+                      !!personalErrors.dateOfBirth
+                    )}
+                  />
+
+                  {personalErrors.dateOfBirth && (
+                    <p className="mt-1 text-sm text-red-600">
+                      Please enter Date of Birth.
+                    </p>
+                  )}
+                </div>
+
+                {/* ZIP */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-900">
+                    ZIP Code{" "}
+                    <RequiredMark />
+                  </label>
+
+                  <input
+                    type="text"
+                    value={
+                      personalInfo.zipCode
+                    }
+                    onChange={(event) =>
+                      setPersonalInfo({
+                        ...personalInfo,
+                        zipCode:
+                          event.target.value,
+                      })
+                    }
+                    onBlur={() =>
+                      markTouched("zipCode")
+                    }
+                    placeholder="Enter ZIP code"
+                    className={inputClass(
+                      !!personalErrors.zipCode
+                    )}
+                  />
+
+                  {personalErrors.zipCode && (
+                    <p className="mt-1 text-sm text-red-600">
+                      Please enter ZIP Code.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-8 flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  disabled={isVerifying}
+                  className="rounded-lg bg-blue-600 px-7 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isVerifying
+                    ? "Verifying..."
+                    : "Verify & Continue"}
+                </button>
+              </div>
+            </section>
           )}
 
-          {step === "account" && (
-            <AccountStep
-              account={account}
-              setAccount={setAccount}
-              onBack={() => setStep("personal")}
-              onContinue={handleAccountContinue}
-            />
+          {/* ==========================================
+              STEP 2
+          ========================================== */}
+
+          {currentStep === 2 && (
+            <section>
+              <div className="mb-7">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Account Information
+                </h2>
+
+                <p className="mt-2 text-sm text-gray-600">
+                  Create the username and password
+                  you will use to access your portal
+                  account.
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                {/* Username */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-900">
+                    Username{" "}
+                    <RequiredMark />
+                  </label>
+
+                  <input
+                    type="text"
+                    value={
+                      accountInfo.username
+                    }
+                    onChange={(event) =>
+                      setAccountInfo({
+                        ...accountInfo,
+                        username:
+                          event.target.value,
+                      })
+                    }
+                    onBlur={() =>
+                      markTouched("username")
+                    }
+                    placeholder="Enter username"
+                    autoComplete="username"
+                    className={inputClass(
+                      !!accountErrors.username
+                    )}
+                  />
+
+                  {accountErrors.username && (
+                    <p className="mt-1 text-sm text-red-600">
+                      Please enter Username.
+                    </p>
+                  )}
+                </div>
+
+                {/* Password */}
+
+                <div>
+                  <PasswordInput
+                    label="Password"
+                    value={
+                      accountInfo.password
+                    }
+                    onChange={(event) =>
+                      setAccountInfo({
+                        ...accountInfo,
+                        password:
+                          event.target.value,
+                      })
+                    }
+                    onBlur={() =>
+                      markTouched("password")
+                    }
+                    placeholder="Enter password"
+                    required
+                    error={
+                      touched.password &&
+                      !accountInfo.password
+                        ? "Please enter Password."
+                        : ""
+                    }
+                  />
+
+                  {/* Password requirements */}
+
+                  <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                    <p className="mb-3 text-sm font-semibold text-gray-800">
+                      Password requirements:
+                    </p>
+
+                    <div className="space-y-2">
+                      <PasswordRequirement
+                        valid={
+                          passwordRequirements.minLength
+                        }
+                        text="At least 8 characters"
+                      />
+
+                      <PasswordRequirement
+                        valid={
+                          passwordRequirements.uppercase
+                        }
+                        text="At least one uppercase letter"
+                      />
+
+                      <PasswordRequirement
+                        valid={
+                          passwordRequirements.lowercase
+                        }
+                        text="At least one lowercase letter"
+                      />
+
+                      <PasswordRequirement
+                        valid={
+                          passwordRequirements.special
+                        }
+                        text="At least one special character"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Confirm Password */}
+
+                <div>
+                  <PasswordInput
+                    label="Confirm Password"
+                    value={
+                      accountInfo.confirmPassword
+                    }
+                    onChange={(event) =>
+                      setAccountInfo({
+                        ...accountInfo,
+                        confirmPassword:
+                          event.target.value,
+                      })
+                    }
+                    onBlur={() =>
+                      markTouched(
+                        "confirmPassword"
+                      )
+                    }
+                    placeholder="Re-enter password"
+                    required
+                    error={
+                      touched.confirmPassword &&
+                      !accountInfo.confirmPassword
+                        ? "Please confirm your password."
+                        : touched.confirmPassword &&
+                          passwordMismatch
+                        ? "Passwords do not match."
+                        : ""
+                    }
+                  />
+
+                  {touched.confirmPassword &&
+                    accountInfo.confirmPassword &&
+                    !passwordMismatch && (
+                      <p className="mt-1 text-sm font-medium text-green-600">
+                        ✓ Passwords match.
+                      </p>
+                    )}
+                </div>
+              </div>
+
+              {/* Buttons */}
+
+              <div className="mt-8 flex justify-between">
+                <button
+                  type="button"
+                  onClick={handlePrevious}
+                  className="rounded-lg border border-gray-300 bg-white px-7 py-3 font-semibold text-gray-700 transition hover:bg-gray-50"
+                >
+                  Back
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  className="rounded-lg bg-blue-600 px-7 py-3 font-semibold text-white transition hover:bg-blue-700"
+                >
+                  Continue
+                </button>
+              </div>
+            </section>
           )}
 
-          {step === "security" && (
-            <SecurityStep
-              security={security}
-              setSecurity={setSecurity}
-              onBack={() => setStep("account")}
-              onContinue={handleSecurityContinue}
-            />
+          {/* ==========================================
+              STEP 3
+          ========================================== */}
+
+          {currentStep === 3 && (
+            <section>
+              <div className="mb-7">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Security Information
+                </h2>
+
+                <p className="mt-2 text-sm text-gray-600">
+                  Provide answers to the security
+                  questions below.
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                {/* Pet Name */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-900">
+                    What is your pet name?{" "}
+                    <RequiredMark />
+                  </label>
+
+                  <input
+                    type="text"
+                    value={
+                      securityInfo.petName
+                    }
+                    onChange={(event) =>
+                      setSecurityInfo({
+                        ...securityInfo,
+                        petName:
+                          event.target.value,
+                      })
+                    }
+                    onBlur={() =>
+                      markTouched("petName")
+                    }
+                    placeholder="Enter your pet name"
+                    className={inputClass(
+                      !!securityErrors.petName
+                    )}
+                  />
+
+                  {securityErrors.petName && (
+                    <p className="mt-1 text-sm text-red-600">
+                      Please enter your pet name.
+                    </p>
+                  )}
+                </div>
+
+                {/* Childhood Friend */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-900">
+                    What is your childhood
+                    friend&apos;s name?{" "}
+                    <RequiredMark />
+                  </label>
+
+                  <input
+                    type="text"
+                    value={
+                      securityInfo.childhoodFriendName
+                    }
+                    onChange={(event) =>
+                      setSecurityInfo({
+                        ...securityInfo,
+                        childhoodFriendName:
+                          event.target.value,
+                      })
+                    }
+                    onBlur={() =>
+                      markTouched(
+                        "childhoodFriendName"
+                      )
+                    }
+                    placeholder="Enter your childhood friend's name"
+                    className={inputClass(
+                      !!securityErrors.childhoodFriendName
+                    )}
+                  />
+
+                  {securityErrors.childhoodFriendName && (
+                    <p className="mt-1 text-sm text-red-600">
+                      Please enter your childhood
+                      friend&apos;s name.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Buttons */}
+
+              <div className="mt-8 flex justify-between">
+                <button
+                  type="button"
+                  onClick={handlePrevious}
+                  className="rounded-lg border border-gray-300 bg-white px-7 py-3 font-semibold text-gray-700 transition hover:bg-gray-50"
+                >
+                  Back
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  className="rounded-lg bg-blue-600 px-7 py-3 font-semibold text-white transition hover:bg-blue-700"
+                >
+                  Continue
+                </button>
+              </div>
+            </section>
           )}
 
-          {step === "contact" && (
-            <ContactStep
-              contact={contact}
-              setContact={setContact}
-              onBack={() => setStep("security")}
-              onSubmit={handleCreateAccount}
-              loading={loading}
-            />
+          {/* ==========================================
+              STEP 4
+          ========================================== */}
+
+          {currentStep === 4 && (
+            <section>
+              <div className="mb-7">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Contact Information
+                </h2>
+
+                <p className="mt-2 text-sm text-gray-600">
+                  Enter your contact and address
+                  information.
+                </p>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-2">
+                {/* Email */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-900">
+                    Email{" "}
+                    <RequiredMark />
+                  </label>
+
+                  <input
+                    type="email"
+                    value={
+                      contactInfo.email
+                    }
+                    onChange={(event) =>
+                      setContactInfo({
+                        ...contactInfo,
+                        email:
+                          event.target.value,
+                      })
+                    }
+                    onBlur={() =>
+                      markTouched("email")
+                    }
+                    placeholder="Enter email address"
+                    autoComplete="email"
+                    className={inputClass(
+                      !!contactErrors.email
+                    )}
+                  />
+
+                  {touched.email &&
+                    !contactInfo.email && (
+                      <p className="mt-1 text-sm text-red-600">
+                        Please enter Email.
+                      </p>
+                    )}
+
+                  {touched.email &&
+                    contactInfo.email &&
+                    !emailIsValid && (
+                      <p className="mt-1 text-sm text-red-600">
+                        Please enter a valid email
+                        address.
+                      </p>
+                    )}
+                </div>
+
+                {/* Phone */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-900">
+                    Phone{" "}
+                    <RequiredMark />
+                  </label>
+
+                  <input
+                    type="tel"
+                    value={
+                      contactInfo.phone
+                    }
+                    onChange={(event) =>
+                      setContactInfo({
+                        ...contactInfo,
+                        phone:
+                          event.target.value,
+                      })
+                    }
+                    onBlur={() =>
+                      markTouched("phone")
+                    }
+                    placeholder="Enter phone number"
+                    autoComplete="tel"
+                    className={inputClass(
+                      !!contactErrors.phone
+                    )}
+                  />
+
+                  {contactErrors.phone && (
+                    <p className="mt-1 text-sm text-red-600">
+                      Please enter Phone Number.
+                    </p>
+                  )}
+                </div>
+
+                {/* Street Address */}
+
+                <div className="md:col-span-2">
+                  <label className="mb-2 block text-sm font-semibold text-gray-900">
+                    Street Address{" "}
+                    <RequiredMark />
+                  </label>
+
+                  <input
+                    type="text"
+                    value={
+                      contactInfo.streetAddress
+                    }
+                    onChange={(event) =>
+                      setContactInfo({
+                        ...contactInfo,
+                        streetAddress:
+                          event.target.value,
+                      })
+                    }
+                    onBlur={() =>
+                      markTouched(
+                        "streetAddress"
+                      )
+                    }
+                    placeholder="Enter street address"
+                    autoComplete="street-address"
+                    className={inputClass(
+                      !!contactErrors.streetAddress
+                    )}
+                  />
+
+                  {contactErrors.streetAddress && (
+                    <p className="mt-1 text-sm text-red-600">
+                      Please enter Street Address.
+                    </p>
+                  )}
+                </div>
+
+                {/* Address Line 2 */}
+
+                <div className="md:col-span-2">
+                  <label className="mb-2 block text-sm font-semibold text-gray-900">
+                    Street Address Line 2
+                  </label>
+
+                  <input
+                    type="text"
+                    value={
+                      contactInfo.streetAddressLine2
+                    }
+                    onChange={(event) =>
+                      setContactInfo({
+                        ...contactInfo,
+                        streetAddressLine2:
+                          event.target.value,
+                      })
+                    }
+                    placeholder="Apartment, suite, unit, etc. (optional)"
+                    autoComplete="address-line2"
+                    className={inputClass(false)}
+                  />
+                </div>
+
+                {/* City */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-900">
+                    City{" "}
+                    <RequiredMark />
+                  </label>
+
+                  <input
+                    type="text"
+                    value={
+                      contactInfo.city
+                    }
+                    onChange={(event) =>
+                      setContactInfo({
+                        ...contactInfo,
+                        city:
+                          event.target.value,
+                      })
+                    }
+                    onBlur={() =>
+                      markTouched("city")
+                    }
+                    placeholder="Enter city"
+                    autoComplete="address-level2"
+                    className={inputClass(
+                      !!contactErrors.city
+                    )}
+                  />
+
+                  {contactErrors.city && (
+                    <p className="mt-1 text-sm text-red-600">
+                      Please enter City.
+                    </p>
+                  )}
+                </div>
+
+                {/* State */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-900">
+                    State / Province{" "}
+                    <RequiredMark />
+                  </label>
+
+                  <input
+                    type="text"
+                    value={
+                      contactInfo.state
+                    }
+                    onChange={(event) =>
+                      setContactInfo({
+                        ...contactInfo,
+                        state:
+                          event.target.value,
+                      })
+                    }
+                    onBlur={() =>
+                      markTouched("state")
+                    }
+                    placeholder="Enter state or province"
+                    autoComplete="address-level1"
+                    className={inputClass(
+                      !!contactErrors.state
+                    )}
+                  />
+
+                  {contactErrors.state && (
+                    <p className="mt-1 text-sm text-red-600">
+                      Please enter State / Province.
+                    </p>
+                  )}
+                </div>
+
+                {/* ZIP */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-900">
+                    ZIP Code{" "}
+                    <RequiredMark />
+                  </label>
+
+                  <input
+                    type="text"
+                    value={
+                      contactInfo.zipCode
+                    }
+                    onChange={(event) =>
+                      setContactInfo({
+                        ...contactInfo,
+                        zipCode:
+                          event.target.value,
+                      })
+                    }
+                    onBlur={() =>
+                      markTouched(
+                        "zipCodeContact"
+                      )
+                    }
+                    placeholder="Enter ZIP code"
+                    autoComplete="postal-code"
+                    className={inputClass(
+                      !!contactErrors.zipCode
+                    )}
+                  />
+
+                  {contactErrors.zipCode && (
+                    <p className="mt-1 text-sm text-red-600">
+                      Please enter ZIP Code.
+                    </p>
+                  )}
+                </div>
+
+                {/* Country */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-900">
+                    Country{" "}
+                    <RequiredMark />
+                  </label>
+
+                  <input
+                    type="text"
+                    value={
+                      contactInfo.country
+                    }
+                    onChange={(event) =>
+                      setContactInfo({
+                        ...contactInfo,
+                        country:
+                          event.target.value,
+                      })
+                    }
+                    onBlur={() =>
+                      markTouched("country")
+                    }
+                    placeholder="Enter country"
+                    autoComplete="country-name"
+                    className={inputClass(
+                      !!contactErrors.country
+                    )}
+                  />
+
+                  {contactErrors.country && (
+                    <p className="mt-1 text-sm text-red-600">
+                      Please enter Country.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Buttons */}
+
+              <div className="mt-8 flex justify-between">
+                <button
+                  type="button"
+                  onClick={handlePrevious}
+                  className="rounded-lg border border-gray-300 bg-white px-7 py-3 font-semibold text-gray-700 transition hover:bg-gray-50"
+                >
+                  Back
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleRegistration}
+                  disabled={isRegistering}
+                  className="rounded-lg bg-blue-600 px-7 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isRegistering
+                    ? "Creating Account..."
+                    : "Create Account"}
+                </button>
+              </div>
+            </section>
           )}
         </div>
 
-        {/* Login shortcut */}
-        <div className="mx-auto mt-8 max-w-3xl rounded-xl border border-slate-200 bg-white p-5 text-center">
-          <p className="text-sm text-slate-600">
-            Already have a policyholder account?
-          </p>
+        {/* Required field note */}
 
-          <Link
-            href="/login"
-            className="mt-1 inline-block font-semibold text-blue-600 hover:text-blue-700"
-          >
-            Login to your account
-          </Link>
-        </div>
-      </section>
+        <p className="mt-6 text-center text-sm text-gray-500">
+          <span className="text-red-600">
+            *
+          </span>{" "}
+          indicates a required field.
+        </p>
+      </div>
 
       <Footer />
     </main>
-  );
-}
-
-/* -------------------------------------------------
-   HEADER
-------------------------------------------------- */
-
-function Header({
-  active,
-}: {
-  active: "register" | "login";
-}) {
-  return (
-    <header className="border-b border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-        <Link
-          href="/"
-          className="flex items-center gap-3"
-        >
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-lg font-bold text-white">
-            IP
-          </div>
-
-          <div>
-            <h1 className="text-lg font-bold text-slate-900">
-              Insurance Policyholder Portal
-            </h1>
-
-            <p className="text-xs text-slate-500">
-              Secure Policyholder Services
-            </p>
-          </div>
-        </Link>
-
-        <div className="flex items-center gap-3">
-          <Link
-            href="/login"
-            className={
-              active === "login"
-                ? "rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white"
-                : "rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-            }
-          >
-            Login
-          </Link>
-
-          <Link
-            href="/register"
-            className={
-              active === "register"
-                ? "rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white"
-                : "rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-            }
-          >
-            Register
-          </Link>
-        </div>
-      </div>
-    </header>
-  );
-}
-
-/* -------------------------------------------------
-   PROGRESS BAR
-------------------------------------------------- */
-
-function ProgressBar({
-  step,
-}: {
-  step: Step;
-}) {
-  const steps = [
-    {
-      key: "personal",
-      label: "Personal",
-    },
-    {
-      key: "account",
-      label: "Account",
-    },
-    {
-      key: "security",
-      label: "Security",
-    },
-    {
-      key: "contact",
-      label: "Contact",
-    },
-  ];
-
-  const currentIndex = steps.findIndex(
-    (item) => item.key === step
-  );
-
-  return (
-    <div className="mx-auto mb-8 max-w-3xl">
-      <div className="flex items-center justify-between">
-        {steps.map((item, index) => {
-          const completed = index < currentIndex;
-          const active = index === currentIndex;
-
-          return (
-            <div
-              key={item.key}
-              className="flex flex-1 items-center"
-            >
-              <div className="flex flex-col items-center">
-                <div
-                  className={
-                    completed || active
-                      ? "flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white"
-                      : "flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-sm font-bold text-slate-500"
-                  }
-                >
-                  {completed ? "✓" : index + 1}
-                </div>
-
-                <span
-                  className={
-                    active
-                      ? "mt-2 text-xs font-semibold text-blue-600"
-                      : "mt-2 text-xs font-medium text-slate-500"
-                  }
-                >
-                  {item.label}
-                </span>
-              </div>
-
-              {index < steps.length - 1 && (
-                <div
-                  className={
-                    index < currentIndex
-                      ? "mx-2 h-0.5 flex-1 bg-blue-600"
-                      : "mx-2 h-0.5 flex-1 bg-slate-200"
-                  }
-                />
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/* -------------------------------------------------
-   PERSONAL STEP
-------------------------------------------------- */
-
-function PersonalStep({
-  personal,
-  setPersonal,
-  onContinue,
-  loading,
-}: {
-  personal: PolicyholderVerificationRequest;
-  setPersonal: React.Dispatch<
-    React.SetStateAction<PolicyholderVerificationRequest>
-  >;
-  onContinue: () => void;
-  loading: boolean;
-}) {
-  return (
-    <div>
-      <StepHeading
-        title="Verify Your Policy"
-        description="Enter your policyholder information exactly as it appears in your policy records."
-      />
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <FormField
-          label="SSN / Last 4 Digits"
-          value={personal.ssn}
-          onChange={(value) =>
-            setPersonal({
-              ...personal,
-              ssn: value,
-            })
-          }
-          placeholder="Enter last 4 digits"
-        />
-
-        <FormField
-          label="Policy Number"
-          value={personal.policyNumber}
-          onChange={(value) =>
-            setPersonal({
-              ...personal,
-              policyNumber: value,
-            })
-          }
-          placeholder="e.g. VA8899001"
-        />
-
-        <FormField
-          label="First Name"
-          value={personal.firstName}
-          onChange={(value) =>
-            setPersonal({
-              ...personal,
-              firstName: value,
-            })
-          }
-          placeholder="First name"
-        />
-
-        <FormField
-          label="Last Name"
-          value={personal.lastName}
-          onChange={(value) =>
-            setPersonal({
-              ...personal,
-              lastName: value,
-            })
-          }
-          placeholder="Last name"
-        />
-
-        <FormField
-          label="Date of Birth"
-          value={personal.dateOfBirth}
-          onChange={(value) =>
-            setPersonal({
-              ...personal,
-              dateOfBirth: value,
-            })
-          }
-          placeholder="MM/DD/YYYY"
-        />
-
-        <FormField
-          label="ZIP Code"
-          value={personal.zipCode}
-          onChange={(value) =>
-            setPersonal({
-              ...personal,
-              zipCode: value,
-            })
-          }
-          placeholder="ZIP code"
-        />
-      </div>
-
-      <button
-        onClick={onContinue}
-        disabled={loading}
-        className="mt-8 w-full rounded-lg bg-blue-600 px-7 py-3.5 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {loading
-          ? "Verifying..."
-          : "Verify Policy & Continue"}
-      </button>
-    </div>
-  );
-}
-
-/* -------------------------------------------------
-   ACCOUNT STEP
-------------------------------------------------- */
-
-function AccountStep({
-  account,
-  setAccount,
-  onBack,
-  onContinue,
-}: {
-  account: {
-    username: string;
-    password: string;
-    confirmPassword: string;
-  };
-  setAccount: React.Dispatch<
-    React.SetStateAction<{
-      username: string;
-      password: string;
-      confirmPassword: string;
-    }>
-  >;
-  onBack: () => void;
-  onContinue: () => void;
-}) {
-  return (
-    <div>
-      <StepHeading
-        title="Account Information"
-        description="Create the username and password you will use to access the portal."
-      />
-
-      <div className="space-y-6">
-        <FormField
-          label="Username"
-          value={account.username}
-          onChange={(value) =>
-            setAccount({
-              ...account,
-              username: value,
-            })
-          }
-          placeholder="Choose a username"
-        />
-
-        <FormField
-          label="Password"
-          type="password"
-          value={account.password}
-          onChange={(value) =>
-            setAccount({
-              ...account,
-              password: value,
-            })
-          }
-          placeholder="Create a password"
-        />
-
-        <FormField
-          label="Confirm Password"
-          type="password"
-          value={account.confirmPassword}
-          onChange={(value) =>
-            setAccount({
-              ...account,
-              confirmPassword: value,
-            })
-          }
-          placeholder="Re-enter your password"
-        />
-      </div>
-
-      <div className="mt-5 rounded-lg bg-slate-50 p-4">
-        <p className="text-sm font-semibold text-slate-700">
-          Password requirements
-        </p>
-
-        <ul className="mt-2 space-y-1 text-sm text-slate-500">
-          <li>• At least 8 characters</li>
-          <li>• One uppercase letter</li>
-          <li>• One lowercase letter</li>
-          <li>• One special character</li>
-        </ul>
-      </div>
-
-      <div className="mt-8 flex gap-3">
-        <button
-          onClick={onBack}
-          className="w-1/3 rounded-lg border border-slate-300 bg-white px-6 py-3.5 font-semibold text-slate-700 transition hover:bg-slate-50"
-        >
-          Back
-        </button>
-
-        <button
-          onClick={onContinue}
-          className="w-2/3 rounded-lg bg-blue-600 px-6 py-3.5 font-semibold text-white transition hover:bg-blue-700"
-        >
-          Continue
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* -------------------------------------------------
-   SECURITY STEP
-------------------------------------------------- */
-
-function SecurityStep({
-  security,
-  setSecurity,
-  onBack,
-  onContinue,
-}: {
-  security: {
-    petName: string;
-    childhoodFriendName: string;
-  };
-  setSecurity: React.Dispatch<
-    React.SetStateAction<{
-      petName: string;
-      childhoodFriendName: string;
-    }>
-  >;
-  onBack: () => void;
-  onContinue: () => void;
-}) {
-  return (
-    <div>
-      <StepHeading
-        title="Security Information"
-        description="Provide answers to your security questions."
-      />
-
-      <div className="space-y-6">
-        <div>
-          <label className="mb-2 block text-sm font-semibold text-slate-700">
-            What is your pet name?
-          </label>
-
-          <input
-            type="text"
-            value={security.petName}
-            onChange={(e) =>
-              setSecurity({
-                ...security,
-                petName: e.target.value,
-              })
-            }
-            placeholder="Enter your answer"
-            className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-          />
-        </div>
-
-        <div>
-          <label className="mb-2 block text-sm font-semibold text-slate-700">
-            What is your childhood friend&apos;s name?
-          </label>
-
-          <input
-            type="text"
-            value={security.childhoodFriendName}
-            onChange={(e) =>
-              setSecurity({
-                ...security,
-                childhoodFriendName: e.target.value,
-              })
-            }
-            placeholder="Enter your answer"
-            className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-          />
-        </div>
-      </div>
-
-      <div className="mt-8 flex gap-3">
-        <button
-          onClick={onBack}
-          className="w-1/3 rounded-lg border border-slate-300 bg-white px-6 py-3.5 font-semibold text-slate-700 transition hover:bg-slate-50"
-        >
-          Back
-        </button>
-
-        <button
-          onClick={onContinue}
-          className="w-2/3 rounded-lg bg-blue-600 px-6 py-3.5 font-semibold text-white transition hover:bg-blue-700"
-        >
-          Continue
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* -------------------------------------------------
-   CONTACT STEP
-------------------------------------------------- */
-
-function ContactStep({
-  contact,
-  setContact,
-  onBack,
-  onSubmit,
-  loading,
-}: {
-  contact: {
-    email: string;
-    phone: string;
-    streetAddress: string;
-    streetAddressLine2: string;
-    city: string;
-    state: string;
-    zipCode: string;
-    country: string;
-  };
-  setContact: React.Dispatch<
-    React.SetStateAction<{
-      email: string;
-      phone: string;
-      streetAddress: string;
-      streetAddressLine2: string;
-      city: string;
-      state: string;
-      zipCode: string;
-      country: string;
-    }>
-  >;
-  onBack: () => void;
-  onSubmit: () => void;
-  loading: boolean;
-}) {
-  return (
-    <div>
-      <StepHeading
-        title="Contact Information"
-        description="Provide your contact and address information."
-      />
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <FormField
-          label="Email"
-          type="email"
-          value={contact.email}
-          onChange={(value) =>
-            setContact({
-              ...contact,
-              email: value,
-            })
-          }
-          placeholder="you@example.com"
-        />
-
-        <FormField
-          label="Phone"
-          value={contact.phone}
-          onChange={(value) =>
-            setContact({
-              ...contact,
-              phone: value,
-            })
-          }
-          placeholder="Phone number"
-        />
-
-        <div className="md:col-span-2">
-          <FormField
-            label="Street Address"
-            value={contact.streetAddress}
-            onChange={(value) =>
-              setContact({
-                ...contact,
-                streetAddress: value,
-              })
-            }
-            placeholder="Street address"
-          />
-        </div>
-
-        <div className="md:col-span-2">
-          <FormField
-            label="Street Address Line 2"
-            value={contact.streetAddressLine2}
-            onChange={(value) =>
-              setContact({
-                ...contact,
-                streetAddressLine2: value,
-              })
-            }
-            placeholder="Apartment, suite, unit, etc. (optional)"
-          />
-        </div>
-
-        <FormField
-          label="City"
-          value={contact.city}
-          onChange={(value) =>
-            setContact({
-              ...contact,
-              city: value,
-            })
-          }
-          placeholder="City"
-        />
-
-        <FormField
-          label="State"
-          value={contact.state}
-          onChange={(value) =>
-            setContact({
-              ...contact,
-              state: value,
-            })
-          }
-          placeholder="State"
-        />
-
-        <FormField
-          label="ZIP Code"
-          value={contact.zipCode}
-          onChange={(value) =>
-            setContact({
-              ...contact,
-              zipCode: value,
-            })
-          }
-          placeholder="ZIP code"
-        />
-
-        <FormField
-          label="Country"
-          value={contact.country}
-          onChange={(value) =>
-            setContact({
-              ...contact,
-              country: value,
-            })
-          }
-          placeholder="Country"
-        />
-      </div>
-
-      <div className="mt-8 flex gap-3">
-        <button
-          onClick={onBack}
-          className="w-1/3 rounded-lg border border-slate-300 bg-white px-6 py-3.5 font-semibold text-slate-700 transition hover:bg-slate-50"
-        >
-          Back
-        </button>
-
-        <button
-          onClick={onSubmit}
-          disabled={loading}
-          className="w-2/3 rounded-lg bg-blue-600 px-6 py-3.5 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {loading
-            ? "Creating Account..."
-            : "Create Account"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* -------------------------------------------------
-   COMMON COMPONENTS
-------------------------------------------------- */
-
-function StepHeading({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="mb-8">
-      <h3 className="text-2xl font-bold text-slate-900">
-        {title}
-      </h3>
-
-      <p className="mt-2 text-sm leading-6 text-slate-600">
-        {description}
-      </p>
-    </div>
-  );
-}
-
-function FormField({
-  label,
-  value,
-  onChange,
-  placeholder,
-  type = "text",
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  type?: string;
-}) {
-  return (
-    <div>
-      <label className="mb-2 block text-sm font-semibold text-slate-700">
-        {label}
-      </label>
-
-      <input
-        type={type}
-        value={value}
-        onChange={(e) =>
-          onChange(e.target.value)
-        }
-        placeholder={placeholder}
-        className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-      />
-    </div>
-  );
-}
-
-function Footer() {
-  return (
-    <footer className="border-t border-slate-200 bg-white">
-      <div className="mx-auto max-w-7xl px-6 py-6 text-center text-sm text-slate-500">
-        © 2026 Insurance Policyholder Portal
-      </div>
-    </footer>
   );
 }

@@ -10,16 +10,12 @@ public class InsurancePolicyPortalDbContext : DbContext
         : base(options)
     {
     }
-
     public DbSet<PolicyHolderEntity> PolicyHolders
         => Set<PolicyHolderEntity>();
-
     public DbSet<UserEntity> Users
         => Set<UserEntity>();
-
     public DbSet<SecurityQuestionEntity> SecurityQuestions
         => Set<SecurityQuestionEntity>();
-
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {

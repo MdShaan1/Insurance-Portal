@@ -3,7 +3,6 @@ using InsurancePolicyPortalDemo.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace InsurancePolicyPortalDemo.Repositories;
-
 public class SqlPolicyHolderRepository
     : IPolicyHolderRepository
 {
@@ -14,7 +13,6 @@ public class SqlPolicyHolderRepository
     {
         _context = context;
     }
-
     public async Task<PolicyHolder?> GetByPolicyNumberAsync(
         string policyNumber)
     {

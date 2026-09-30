@@ -1,18 +1,14 @@
 using System.Text.Json;
 using InsurancePolicyPortalDemo.Models;
-
 namespace InsurancePolicyPortalDemo.Repositories;
-
 public class PolicyHolderRepository : IPolicyHolderRepository
 {
-    private readonly string _filePath;
-
+        private readonly string _filePath;
     private readonly JsonSerializerOptions _jsonOptions =
         new()
         {
             PropertyNameCaseInsensitive = true
         };
-
     public PolicyHolderRepository(IWebHostEnvironment environment)
     {
         _filePath = Path.Combine(
@@ -21,7 +17,6 @@ public class PolicyHolderRepository : IPolicyHolderRepository
             "policyholders.json"
         );
     }
-
     public async Task<PolicyHolder?> GetByPolicyNumberAsync(
         string policyNumber)
     {
@@ -29,14 +24,12 @@ public class PolicyHolderRepository : IPolicyHolderRepository
         {
             return null;
         }
-
         var json = await File.ReadAllTextAsync(_filePath);
 
         if (string.IsNullOrWhiteSpace(json))
         {
             return null;
         }
-
         var data =
             JsonSerializer.Deserialize<PolicyHolderData>(
                 json,
