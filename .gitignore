@@ -6,6 +6,7 @@
 **/node_modules/
 **/.next/
 **/out/
+**/TestResults/
 **/.env*
 !**/.env.example
 /package-lock.json
