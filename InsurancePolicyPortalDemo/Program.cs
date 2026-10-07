@@ -12,25 +12,26 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// SQL Server + Entity Framework Core
-builder.Services.AddDbContext<InsurancePolicyPortalDbContext>(
-    options =>
-        options.UseSqlServer(
-            builder.Configuration
-                .GetConnectionString("DefaultConnection")
-        )
-);
+var connectionString =
+    builder.Configuration.GetConnectionString("DefaultConnection");
 
-// SQL Repository implementations
-builder.Services.AddScoped<
-    IUserRepository,
-    SqlUserRepository
->();
+if (builder.Environment.IsDevelopment() &&
+    string.IsNullOrWhiteSpace(connectionString))
+{
+    // Use the bundled JSON data for local demos without SQL Server setup.
+    builder.Services.AddScoped<IUserRepository, UserRepository>();
+    builder.Services.AddScoped<IPolicyHolderRepository, PolicyHolderRepository>();
+}
+else
+{
+    // SQL Server + Entity Framework Core
+    builder.Services.AddDbContext<InsurancePolicyPortalDbContext>(
+        options => options.UseSqlServer(connectionString)
+    );
 
-builder.Services.AddScoped<
-    IPolicyHolderRepository,
-    SqlPolicyHolderRepository
->();
+    builder.Services.AddScoped<IUserRepository, SqlUserRepository>();
+    builder.Services.AddScoped<IPolicyHolderRepository, SqlPolicyHolderRepository>();
+}
 
 // Service
 builder.Services.AddScoped<
