@@ -5,7 +5,7 @@ import type { ReactElement } from "react";
 
 import LoginPage from "@/app/login/page";
 import { ApiClientProvider } from "@/src/lib/ApiClientProvider";
-import { apiClient, login } from "@/src/lib/api";
+import { login } from "@/src/lib/api";
 
 const mockPush = vi.hoisted(() => vi.fn());
 
@@ -30,7 +30,7 @@ vi.mock("@/src/lib/api", () => {
 const mockedLogin = vi.mocked(login);
 const render = (ui: ReactElement) =>
   renderUi(
-    <ApiClientProvider client={apiClient}>
+    <ApiClientProvider>
       {ui}
     </ApiClientProvider>,
   );
@@ -265,7 +265,7 @@ describe("LoginPage", () => {
     expect(registerLink).toBeInTheDocument();
     expect(registerLink).toHaveAttribute(
       "href",
-      "/register"
+      "/register/personal"
     );
   });
 });

@@ -1,3 +1,4 @@
+
 using InsurancePolicyPortalDemo.Data;
 using InsurancePolicyPortalDemo.Entities;
 using InsurancePolicyPortalDemo.Models;
@@ -19,17 +20,20 @@ public class SqlUserRepository : IUserRepository
     private static User MapToModel(UserEntity entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
+
         var policyHolder = entity.PolicyHolder;
 
         return new User
         {
             Id = entity.Id,
             PolicyHolderId = entity.PolicyHolderId,
+
             PolicyNumber = policyHolder?.PolicyNumber ?? entity.PolicyNumber,
             FirstName = policyHolder?.FirstName ?? entity.FirstName,
             LastName = policyHolder?.LastName ?? entity.LastName,
             DateOfBirth = policyHolder?.DateOfBirth ?? entity.DateOfBirth,
             ZipCode = policyHolder?.ZipCode ?? entity.ZipCode,
+
             Username = entity.Username,
             PasswordHash = entity.PasswordHash,
 
@@ -56,19 +60,22 @@ public class SqlUserRepository : IUserRepository
     private static UserEntity MapToEntity(User user)
     {
         ArgumentNullException.ThrowIfNull(user);
-        var hasPolicyHolder = user.PolicyHolderId.HasValue;
 
         return new UserEntity
         {
             Id = user.Id,
             PolicyHolderId = user.PolicyHolderId,
             PolicyNumber = user.PolicyNumber,
-            FirstName = hasPolicyHolder ? string.Empty : user.FirstName,
-            LastName = hasPolicyHolder ? string.Empty : user.LastName,
-            DateOfBirth = hasPolicyHolder ? string.Empty : user.DateOfBirth,
-            ZipCode = hasPolicyHolder ? string.Empty : user.ZipCode,
+
+            // Preserve personal information instead of saving empty strings.
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            DateOfBirth = user.DateOfBirth,
+            ZipCode = user.ZipCode,
+
             Username = user.Username,
             PasswordHash = user.PasswordHash,
+
             Email = user.Email,
             Phone = user.Phone,
             StreetAddress = user.StreetAddress,
@@ -90,34 +97,30 @@ public class SqlUserRepository : IUserRepository
         };
     }
 
-    public async Task<List<User>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<List<User>> GetAllAsync(
+        CancellationToken cancellationToken = default)
     {
-        var entities =
-            await _context.Users
-                .Include(u => u.SecurityQuestions)
-                .Include(u => u.PolicyHolder)
-                .AsNoTracking()
-                .ToListAsync(cancellationToken);
+        var entities = await _context.Users
+            .Include(u => u.SecurityQuestions)
+            .Include(u => u.PolicyHolder)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
 
-        return entities
-            .Select(MapToModel)
-            .ToList();
+        return entities.Select(MapToModel).ToList();
     }
 
-    public async Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<User?> GetByIdAsync(
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
-        var entity =
-            await _context.Users
-                .Include(u => u.PolicyHolder)
-                .AsNoTracking()
-                .FirstOrDefaultAsync(
-                    u => u.Id == id,
-                    cancellationToken
-                );
+        var entity = await _context.Users
+            .Include(u => u.PolicyHolder)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                u => u.Id == id,
+                cancellationToken);
 
-        return entity == null
-            ? null
-            : MapToModel(entity);
+        return entity is null ? null : MapToModel(entity);
     }
 
     public async Task<User?> GetByUsernameAsync(
@@ -134,14 +137,13 @@ public class SqlUserRepository : IUserRepository
         var entity = await _context.Users
             .Include(u => u.PolicyHolder)
             .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Username == normalizedUsername, cancellationToken);
+            .FirstOrDefaultAsync(
+                u => u.Username == normalizedUsername,
+                cancellationToken);
 
-        return entity == null
-            ? null
-            : MapToModel(entity);
+        return entity is null ? null : MapToModel(entity);
     }
 
-    // Get user by Policy Number
     public async Task<User?> GetByPolicyNumberAsync(
         string policyNumber,
         CancellationToken cancellationToken = default)
@@ -156,14 +158,16 @@ public class SqlUserRepository : IUserRepository
         var entity = await _context.Users
             .Include(u => u.PolicyHolder)
             .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.PolicyNumber == normalizedPolicyNumber, cancellationToken);
+            .FirstOrDefaultAsync(
+                u => u.PolicyNumber == normalizedPolicyNumber,
+                cancellationToken);
 
-        return entity == null
-            ? null
-            : MapToModel(entity);
+        return entity is null ? null : MapToModel(entity);
     }
 
-    public async Task<User> AddAsync(User user, CancellationToken cancellationToken = default)
+    public async Task<User> AddAsync(
+        User user,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(user);
 
@@ -178,14 +182,17 @@ public class SqlUserRepository : IUserRepository
         }
 
         var entity = MapToEntity(user);
+
         if (user.PolicyHolderId is int policyHolderId)
         {
             entity.PolicyHolder = await _context.PolicyHolders.FindAsync(
                 [policyHolderId],
                 cancellationToken);
+
             if (entity.PolicyHolder is null)
             {
-                throw new PolicyholderValidationException("personalInformation");
+                throw new PolicyholderValidationException(
+                    "personalInformation");
             }
         }
 
@@ -195,45 +202,52 @@ public class SqlUserRepository : IUserRepository
         {
             await _context.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException exception) when (IsUniqueConstraintViolation(exception))
+        catch (DbUpdateException exception)
+            when (IsUniqueConstraintViolation(exception))
         {
             var sqlException = FindSqlException(exception);
-            var isUsername = sqlException?.Message.Contains("IX_Users_Username", StringComparison.OrdinalIgnoreCase) == true;
+
+            var isUsername = sqlException?.Message.Contains(
+                "IX_Users_Username",
+                StringComparison.OrdinalIgnoreCase) == true;
+
             throw new RegistrationConflictException(
-                isUsername ? "accountInformation.username" : "personalInformation.policyNumber",
-                isUsername ? "Username already exists." : "An account has already been created for this policy number.");
+                isUsername
+                    ? "accountInformation.username"
+                    : "personalInformation.policyNumber",
+                isUsername
+                    ? "Username already exists."
+                    : "An account has already been created for this policy number.");
         }
 
         return MapToModel(entity);
     }
 
-    public async Task<User> UpdateAsync(User user, CancellationToken cancellationToken = default)
+    public async Task<User> UpdateAsync(
+        User user,
+        CancellationToken cancellationToken = default)
     {
-        var entity =
-            await _context.Users
-                .Include(u => u.SecurityQuestions)
-                .Include(u => u.PolicyHolder)
-                .FirstOrDefaultAsync(
-                    u => u.Id == user.Id,
-                    cancellationToken
-                );
+        var entity = await _context.Users
+            .Include(u => u.SecurityQuestions)
+            .Include(u => u.PolicyHolder)
+            .FirstOrDefaultAsync(
+                u => u.Id == user.Id,
+                cancellationToken);
 
-        if (entity == null)
+        if (entity is null)
         {
-            throw new KeyNotFoundException(
-                "User not found."
-            );
+            throw new KeyNotFoundException("User not found.");
         }
 
         entity.PolicyNumber = user.PolicyNumber;
         entity.PolicyHolderId = user.PolicyHolderId;
-        if (user.PolicyHolderId is null)
-        {
-            entity.FirstName = user.FirstName;
-            entity.LastName = user.LastName;
-            entity.DateOfBirth = user.DateOfBirth;
-            entity.ZipCode = user.ZipCode;
-        }
+
+        // Keep the user entity's personal information synchronized.
+        entity.FirstName = user.FirstName;
+        entity.LastName = user.LastName;
+        entity.DateOfBirth = user.DateOfBirth;
+        entity.ZipCode = user.ZipCode;
+
         entity.Username = user.Username;
         entity.PasswordHash = user.PasswordHash;
         entity.Email = user.Email;
@@ -247,6 +261,7 @@ public class SqlUserRepository : IUserRepository
         if (user.SecurityQuestions.Count > 0)
         {
             _context.SecurityQuestions.RemoveRange(entity.SecurityQuestions);
+
             entity.SecurityQuestions =
                 user.SecurityQuestions
                     .Select(q => new SecurityQuestionEntity
@@ -263,16 +278,16 @@ public class SqlUserRepository : IUserRepository
         return MapToModel(entity);
     }
 
-    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<bool> DeleteAsync(
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
-        var entity =
-            await _context.Users
-                .FirstOrDefaultAsync(
-                    u => u.Id == id,
-                    cancellationToken
-                );
+        var entity = await _context.Users
+            .FirstOrDefaultAsync(
+                u => u.Id == id,
+                cancellationToken);
 
-        if (entity == null)
+        if (entity is null)
         {
             return false;
         }
@@ -284,12 +299,15 @@ public class SqlUserRepository : IUserRepository
         return true;
     }
 
-    private static bool IsUniqueConstraintViolation(DbUpdateException exception) =>
+    private static bool IsUniqueConstraintViolation(
+        DbUpdateException exception) =>
         FindSqlException(exception)?.Number is 2601 or 2627;
 
     private static SqlException? FindSqlException(Exception exception)
     {
-        for (var current = exception; current is not null; current = current.InnerException!)
+        for (var current = exception;
+             current is not null;
+             current = current.InnerException!)
         {
             if (current is SqlException sqlException)
             {

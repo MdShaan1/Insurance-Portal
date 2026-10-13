@@ -6,7 +6,6 @@ import type { ReactElement } from "react";
 import RegisterPage from "@/app/register/page";
 import { ApiClientProvider } from "@/src/lib/ApiClientProvider";
 import {
-  apiClient,
   getSecurityQuestionLabels,
   verifyPolicyholder,
   signUp,
@@ -36,7 +35,7 @@ const mockedVerifyPolicyholder = vi.mocked(verifyPolicyholder);
 const mockedSignUp = vi.mocked(signUp);
 const render = (ui: ReactElement) =>
   renderUi(
-    <ApiClientProvider client={apiClient}>
+    <ApiClientProvider>
       {ui}
     </ApiClientProvider>,
   );
@@ -174,6 +173,25 @@ describe("RegisterPage - Step 1", () => {
     expect(
       mockedVerifyPolicyholder
     ).not.toHaveBeenCalled();
+  });
+
+  it("should reject a policy number that does not match the accepted format", async () => {
+    const user = userEvent.setup();
+
+    render(<RegisterPage />);
+
+    await user.type(screen.getByPlaceholderText("Enter 4 digits"), "1234");
+    await user.type(screen.getByPlaceholderText("Enter policy number"), "invalid");
+    await user.type(screen.getByPlaceholderText("Enter first name"), "John");
+    await user.type(screen.getByPlaceholderText("Enter last name"), "Doe");
+    await user.type(screen.getByPlaceholderText("MM/DD/YYYY"), "01/15/1990");
+    await user.type(screen.getByPlaceholderText("Enter ZIP code"), "12345");
+    await user.click(screen.getByRole("button", { name: "Verify & Continue" }));
+
+    expect(
+      screen.getByText("Policy number must start with VA and contain 9-12 characters."),
+    ).toBeInTheDocument();
+    expect(mockedVerifyPolicyholder).not.toHaveBeenCalled();
   });
 
   it("should remove non-numeric characters from the SSN input", async () => {
@@ -732,9 +750,7 @@ describe("RegisterPage - Step 2", () => {
       })
     );
 
-    expect(
-      screen.getByText("Personal Information")
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Personal Information" })).toBeInTheDocument();
 
     expect(
       screen.getByPlaceholderText("Enter policy number")

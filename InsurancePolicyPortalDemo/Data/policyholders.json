@@ -9,7 +9,7 @@
       "zipCode": "99501",
       "email": "chandler.bing@example.com",
       "phone": "9004008000",
-      "id": "10"
+      "id": 10
     },
     {
       "SSN": "7777",
@@ -20,7 +20,7 @@
       "zipCode": "99501",
       "email": "joey.tribbiani@example.com",
       "phone": "9004008001",
-      "id": "11"
+      "id": 11
     },
     {
       "SSN": "8888",
@@ -31,7 +31,7 @@
       "zipCode": "682001",
       "email": "muhammed.shaan@example.com",
       "phone": "9004008002",
-      "id": "12"
+      "id": 12
     },
     {
       "SSN": "9999",
@@ -42,7 +42,7 @@
       "zipCode": "695001",
       "email": "rohit.s@example.com",
       "phone": "9004008003",
-      "id": "13"
+      "id": 13
     },
     {
       "SSN": "1234",
@@ -53,7 +53,7 @@
       "zipCode": "695014",
       "email": "nahal.m@example.com",
       "phone": "9004008004",
-      "id": "14"
+      "id": 14
     },
     {
       "SSN": "2345",
@@ -64,7 +64,7 @@
       "zipCode": "682016",
       "email": "arjun.menon@example.com",
       "phone": "9004008005",
-      "id": "15"
+      "id": 15
     },
     {
       "SSN": "3456",
@@ -75,7 +75,7 @@
       "zipCode": "695033",
       "email": "aditya.nair@example.com",
       "phone": "9004008006",
-      "id": "16"
+      "id": 16
     },
     {
       "SSN": "4567",
@@ -86,7 +86,7 @@
       "zipCode": "673001",
       "email": "rahul.krishnan@example.com",
       "phone": "9004008007",
-      "id": "17"
+      "id": 17
     },
     {
       "SSN": "5678",
@@ -97,7 +97,7 @@
       "zipCode": "682030",
       "email": "ananya.thomas@example.com",
       "phone": "9004008008",
-      "id": "18"
+      "id": 18
     },
     {
       "SSN": "6789",
@@ -108,7 +108,7 @@
       "zipCode": "695004",
       "email": "vishnu.kumar@example.com",
       "phone": "9004008009",
-      "id": "19"
+      "id": 19
     }
   ]
 }

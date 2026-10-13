@@ -20,7 +20,7 @@ export default function Header() {
           </Link>
 
           <Link
-            href="/register"
+            href="/register/personal"
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
           >
             Register
