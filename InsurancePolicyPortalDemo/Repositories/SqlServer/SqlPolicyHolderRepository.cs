@@ -14,13 +14,19 @@ public class SqlPolicyHolderRepository
         _context = context;
     }
     public async Task<PolicyHolder?> GetByPolicyNumberAsync(
-        string policyNumber)
+        string policyNumber,
+        CancellationToken cancellationToken = default)
     {
-        var entity =
-            await _context.PolicyHolders
-                .FirstOrDefaultAsync(
-                    p => p.PolicyNumber == policyNumber
-                );
+        if (string.IsNullOrWhiteSpace(policyNumber))
+        {
+            return null;
+        }
+
+        var normalizedPolicyNumber = policyNumber.Trim();
+
+        var entity = await _context.PolicyHolders
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.PolicyNumber == normalizedPolicyNumber, cancellationToken);
 
         if (entity == null)
         {
@@ -29,7 +35,7 @@ public class SqlPolicyHolderRepository
 
         return new PolicyHolder
         {
-            Id = entity.Id.ToString(),
+            Id = entity.Id,
             SSN = entity.SSN,
             PolicyNumber = entity.PolicyNumber,
             FirstName = entity.FirstName,

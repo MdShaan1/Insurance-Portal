@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   login,
+  getSecurityQuestionLabels,
   signUp,
   verifyPolicyholder,
   type RegistrationRequest,
@@ -14,6 +15,25 @@ describe("API functions", () => {
     vi.restoreAllMocks();
   });
 
+  describe("getSecurityQuestionLabels", () => {
+    it("loads the configured registration security questions", async () => {
+      const labels = {
+        petName: "Configured pet question",
+        childhoodFriendName: "Configured friend question",
+      };
+      const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue(labels),
+      } as unknown as Response);
+
+      await expect(getSecurityQuestionLabels()).resolves.toEqual(labels);
+      expect(fetchMock).toHaveBeenCalledWith(
+        "http://localhost:5034/api/users/security-questions",
+        { headers: { Accept: "application/json, application/problem+json" } },
+      );
+    });
+  });
+
   // ============================================================
   // VERIFY POLICYHOLDER
   // ============================================================
@@ -21,10 +41,10 @@ describe("API functions", () => {
   describe("verifyPolicyholder", () => {
     const policyholderData: PolicyholderVerificationRequest = {
       ssn: "1234",
-      policyNumber: "POL123456",
+      policyNumber: "VA6666667",
       firstName: "John",
       lastName: "Doe",
-      dateOfBirth: "1990-01-15",
+      dateOfBirth: "01/15/1990",
       zipCode: "12345",
     };
 
@@ -46,12 +66,13 @@ describe("API functions", () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
 
       expect(fetchMock).toHaveBeenCalledWith(
-        "http://localhost:5034/api/User/verify-policyholder",
+        "http://localhost:5034/api/users/verify-policyholder",
         {
           method: "POST",
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
-            Accept: "*/*",
+            Accept: "application/json, application/problem+json",
           },
           body: JSON.stringify(policyholderData),
         }
@@ -86,10 +107,10 @@ describe("API functions", () => {
     const registrationData: RegistrationRequest = {
       personalInformation: {
         ssn: "1234",
-        policyNumber: "POL123456",
+        policyNumber: "VA6666667",
         firstName: "John",
         lastName: "Doe",
-        dateOfBirth: "1990-01-15",
+        dateOfBirth: "01/15/1990",
         zipCode: "12345",
       },
 
@@ -135,12 +156,13 @@ describe("API functions", () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
 
       expect(fetchMock).toHaveBeenCalledWith(
-        "http://localhost:5034/api/User/SignUp",
+        "http://localhost:5034/api/users/register",
         {
           method: "POST",
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
-            Accept: "*/*",
+            Accept: "application/json, application/problem+json",
           },
           body: JSON.stringify(registrationData),
         }
@@ -196,12 +218,13 @@ describe("API functions", () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
 
       expect(fetchMock).toHaveBeenCalledWith(
-        "http://localhost:5034/api/User/login",
+        "http://localhost:5034/api/users/login",
         {
           method: "POST",
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
-            Accept: "*/*",
+            Accept: "application/json, application/problem+json",
           },
           body: JSON.stringify(loginData),
         }

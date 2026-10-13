@@ -2,6 +2,8 @@ using InsurancePolicyPortalDemo.Data;
 using InsurancePolicyPortalDemo.Entities;
 using InsurancePolicyPortalDemo.Models;
 using Microsoft.EntityFrameworkCore;
+using InsurancePolicyPortalDemo.Services;
+using Microsoft.Data.SqlClient;
 
 namespace InsurancePolicyPortalDemo.Repositories;
 
@@ -9,27 +11,30 @@ public class SqlUserRepository : IUserRepository
 {
     private readonly InsurancePolicyPortalDbContext _context;
 
-    public SqlUserRepository(
-        InsurancePolicyPortalDbContext context)
+    public SqlUserRepository(InsurancePolicyPortalDbContext context)
     {
         _context = context;
     }
 
     private static User MapToModel(UserEntity entity)
     {
+        ArgumentNullException.ThrowIfNull(entity);
+        var policyHolder = entity.PolicyHolder;
+
         return new User
         {
             Id = entity.Id,
-            PolicyNumber = entity.PolicyNumber,
-            FirstName = entity.FirstName,
-            LastName = entity.LastName,
-            DateOfBirth = entity.DateOfBirth,
-            ZipCode = entity.ZipCode,
+            PolicyHolderId = entity.PolicyHolderId,
+            PolicyNumber = policyHolder?.PolicyNumber ?? entity.PolicyNumber,
+            FirstName = policyHolder?.FirstName ?? entity.FirstName,
+            LastName = policyHolder?.LastName ?? entity.LastName,
+            DateOfBirth = policyHolder?.DateOfBirth ?? entity.DateOfBirth,
+            ZipCode = policyHolder?.ZipCode ?? entity.ZipCode,
             Username = entity.Username,
             PasswordHash = entity.PasswordHash,
 
             SecurityQuestions =
-                entity.SecurityQuestions
+                (entity.SecurityQuestions ?? new List<SecurityQuestionEntity>())
                     .Select(q => new SecurityQuestion
                     {
                         Question = q.Question,
@@ -50,14 +55,18 @@ public class SqlUserRepository : IUserRepository
 
     private static UserEntity MapToEntity(User user)
     {
+        ArgumentNullException.ThrowIfNull(user);
+        var hasPolicyHolder = user.PolicyHolderId.HasValue;
+
         return new UserEntity
         {
             Id = user.Id,
+            PolicyHolderId = user.PolicyHolderId,
             PolicyNumber = user.PolicyNumber,
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            DateOfBirth = user.DateOfBirth,
-            ZipCode = user.ZipCode,
+            FirstName = hasPolicyHolder ? string.Empty : user.FirstName,
+            LastName = hasPolicyHolder ? string.Empty : user.LastName,
+            DateOfBirth = hasPolicyHolder ? string.Empty : user.DateOfBirth,
+            ZipCode = hasPolicyHolder ? string.Empty : user.ZipCode,
             Username = user.Username,
             PasswordHash = user.PasswordHash,
             Email = user.Email,
@@ -70,7 +79,7 @@ public class SqlUserRepository : IUserRepository
             CreatedAt = user.CreatedAt,
 
             SecurityQuestions =
-                user.SecurityQuestions
+                (user.SecurityQuestions ?? new List<SecurityQuestion>())
                     .Select(q => new SecurityQuestionEntity
                     {
                         UserId = user.Id,
@@ -81,25 +90,29 @@ public class SqlUserRepository : IUserRepository
         };
     }
 
-    public async Task<List<User>> GetAllAsync()
+    public async Task<List<User>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         var entities =
             await _context.Users
                 .Include(u => u.SecurityQuestions)
-                .ToListAsync();
+                .Include(u => u.PolicyHolder)
+                .AsNoTracking()
+                .ToListAsync(cancellationToken);
 
         return entities
             .Select(MapToModel)
             .ToList();
     }
 
-    public async Task<User?> GetByIdAsync(Guid id)
+    public async Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var entity =
             await _context.Users
-                .Include(u => u.SecurityQuestions)
+                .Include(u => u.PolicyHolder)
+                .AsNoTracking()
                 .FirstOrDefaultAsync(
-                    u => u.Id == id
+                    u => u.Id == id,
+                    cancellationToken
                 );
 
         return entity == null
@@ -108,14 +121,20 @@ public class SqlUserRepository : IUserRepository
     }
 
     public async Task<User?> GetByUsernameAsync(
-        string username)
+        string username,
+        CancellationToken cancellationToken = default)
     {
-        var entity =
-            await _context.Users
-                .Include(u => u.SecurityQuestions)
-                .FirstOrDefaultAsync(
-                    u => u.Username == username
-                );
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            return null;
+        }
+
+        var normalizedUsername = username.Trim();
+
+        var entity = await _context.Users
+            .Include(u => u.PolicyHolder)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Username == normalizedUsername, cancellationToken);
 
         return entity == null
             ? null
@@ -124,22 +143,30 @@ public class SqlUserRepository : IUserRepository
 
     // Get user by Policy Number
     public async Task<User?> GetByPolicyNumberAsync(
-        string policyNumber)
+        string policyNumber,
+        CancellationToken cancellationToken = default)
     {
-        var entity =
-            await _context.Users
-                .Include(u => u.SecurityQuestions)
-                .FirstOrDefaultAsync(
-                    u => u.PolicyNumber == policyNumber
-                );
+        if (string.IsNullOrWhiteSpace(policyNumber))
+        {
+            return null;
+        }
+
+        var normalizedPolicyNumber = policyNumber.Trim();
+
+        var entity = await _context.Users
+            .Include(u => u.PolicyHolder)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.PolicyNumber == normalizedPolicyNumber, cancellationToken);
 
         return entity == null
             ? null
             : MapToModel(entity);
     }
 
-    public async Task<User> AddAsync(User user)
+    public async Task<User> AddAsync(User user, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(user);
+
         if (user.Id == Guid.Empty)
         {
             user.Id = Guid.NewGuid();
@@ -151,21 +178,44 @@ public class SqlUserRepository : IUserRepository
         }
 
         var entity = MapToEntity(user);
+        if (user.PolicyHolderId is int policyHolderId)
+        {
+            entity.PolicyHolder = await _context.PolicyHolders.FindAsync(
+                [policyHolderId],
+                cancellationToken);
+            if (entity.PolicyHolder is null)
+            {
+                throw new PolicyholderValidationException("personalInformation");
+            }
+        }
 
         _context.Users.Add(entity);
 
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (IsUniqueConstraintViolation(exception))
+        {
+            var sqlException = FindSqlException(exception);
+            var isUsername = sqlException?.Message.Contains("IX_Users_Username", StringComparison.OrdinalIgnoreCase) == true;
+            throw new RegistrationConflictException(
+                isUsername ? "accountInformation.username" : "personalInformation.policyNumber",
+                isUsername ? "Username already exists." : "An account has already been created for this policy number.");
+        }
 
         return MapToModel(entity);
     }
 
-    public async Task<User> UpdateAsync(User user)
+    public async Task<User> UpdateAsync(User user, CancellationToken cancellationToken = default)
     {
         var entity =
             await _context.Users
                 .Include(u => u.SecurityQuestions)
+                .Include(u => u.PolicyHolder)
                 .FirstOrDefaultAsync(
-                    u => u.Id == user.Id
+                    u => u.Id == user.Id,
+                    cancellationToken
                 );
 
         if (entity == null)
@@ -176,10 +226,14 @@ public class SqlUserRepository : IUserRepository
         }
 
         entity.PolicyNumber = user.PolicyNumber;
-        entity.FirstName = user.FirstName;
-        entity.LastName = user.LastName;
-        entity.DateOfBirth = user.DateOfBirth;
-        entity.ZipCode = user.ZipCode;
+        entity.PolicyHolderId = user.PolicyHolderId;
+        if (user.PolicyHolderId is null)
+        {
+            entity.FirstName = user.FirstName;
+            entity.LastName = user.LastName;
+            entity.DateOfBirth = user.DateOfBirth;
+            entity.ZipCode = user.ZipCode;
+        }
         entity.Username = user.Username;
         entity.PasswordHash = user.PasswordHash;
         entity.Email = user.Email;
@@ -190,31 +244,32 @@ public class SqlUserRepository : IUserRepository
         entity.State = user.State;
         entity.Country = user.Country;
 
-        _context.SecurityQuestions.RemoveRange(
-            entity.SecurityQuestions
-        );
+        if (user.SecurityQuestions.Count > 0)
+        {
+            _context.SecurityQuestions.RemoveRange(entity.SecurityQuestions);
+            entity.SecurityQuestions =
+                user.SecurityQuestions
+                    .Select(q => new SecurityQuestionEntity
+                    {
+                        UserId = user.Id,
+                        Question = q.Question,
+                        Answer = q.Answer
+                    })
+                    .ToList();
+        }
 
-        entity.SecurityQuestions =
-            user.SecurityQuestions
-                .Select(q => new SecurityQuestionEntity
-                {
-                    UserId = user.Id,
-                    Question = q.Question,
-                    Answer = q.Answer
-                })
-                .ToList();
-
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
         return MapToModel(entity);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var entity =
             await _context.Users
                 .FirstOrDefaultAsync(
-                    u => u.Id == id
+                    u => u.Id == id,
+                    cancellationToken
                 );
 
         if (entity == null)
@@ -224,8 +279,29 @@ public class SqlUserRepository : IUserRepository
 
         _context.Users.Remove(entity);
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
         return true;
+    }
+
+    private static bool IsUniqueConstraintViolation(DbUpdateException exception) =>
+        FindSqlException(exception)?.Number is 2601 or 2627;
+
+    private static SqlException? FindSqlException(Exception exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException!)
+        {
+            if (current is SqlException sqlException)
+            {
+                return sqlException;
+            }
+
+            if (current.InnerException is null)
+            {
+                break;
+            }
+        }
+
+        return null;
     }
 }

@@ -1,6 +1,118 @@
 @InsurancePolicyPortalDemo_HostAddress = http://localhost:5034
+@userId = 00000000-0000-0000-0000-000000000001
 
-GET {{InsurancePolicyPortalDemo_HostAddress}}/weatherforecast/
+### Get security question labels from application configuration
+GET {{InsurancePolicyPortalDemo_HostAddress}}/api/users/security-questions
 Accept: application/json
 
-###
+### Verify a seeded policyholder
+POST {{InsurancePolicyPortalDemo_HostAddress}}/api/users/verify-policyholder
+Content-Type: application/json
+
+{
+  "ssn": "6666",
+  "policyNumber": "VA6666667",
+  "firstName": "Chandler",
+  "lastName": "Bing",
+  "dateOfBirth": "11/20/2024",
+  "zipCode": "99501"
+}
+
+### Invalid identity details return 422
+POST {{InsurancePolicyPortalDemo_HostAddress}}/api/users/verify-policyholder
+Content-Type: application/json
+
+{
+  "ssn": "0000",
+  "policyNumber": "VA6666667",
+  "firstName": "Chandler",
+  "lastName": "Bing",
+  "dateOfBirth": "11/20/2024",
+  "zipCode": "99501"
+}
+
+### Register an account (201 Created)
+POST {{InsurancePolicyPortalDemo_HostAddress}}/api/users/register
+Content-Type: application/json
+
+{
+  "personalInformation": {
+    "ssn": "7777",
+    "policyNumber": "VA7788995",
+    "firstName": "Joey",
+    "lastName": "Tribbiani",
+    "dateOfBirth": "11/20/2024",
+    "zipCode": "99501"
+  },
+  "accountInformation": {
+    "username": "joey.portal",
+    "password": "PortalPass123!",
+    "confirmPassword": "PortalPass123!"
+  },
+  "securityInformation": {
+    "petName": "Max",
+    "childhoodFriendName": "Joey"
+  },
+  "contactInformation": {
+    "email": "joey.portal@example.com",
+    "phone": "9004008000",
+    "streetAddress": "123 Main Street",
+    "streetAddressLine2": "",
+    "city": "New York",
+    "state": "New York",
+    "zipCode": "99501",
+    "country": "United States"
+  }
+}
+
+### Duplicate registration returns 409
+POST {{InsurancePolicyPortalDemo_HostAddress}}/api/users/register
+Content-Type: application/json
+
+{
+  "personalInformation": {
+    "ssn": "7777",
+    "policyNumber": "VA7788995",
+    "firstName": "Joey",
+    "lastName": "Tribbiani",
+    "dateOfBirth": "11/20/2024",
+    "zipCode": "99501"
+  },
+  "accountInformation": {
+    "username": "another.username",
+    "password": "PortalPass123!",
+    "confirmPassword": "PortalPass123!"
+  },
+  "securityInformation": {
+    "petName": "Max",
+    "childhoodFriendName": "Joey"
+  },
+  "contactInformation": {
+    "email": "another@example.com",
+    "phone": "9004008000",
+    "streetAddress": "123 Main Street",
+    "streetAddressLine2": "",
+    "city": "New York",
+    "state": "New York",
+    "zipCode": "99501",
+    "country": "United States"
+  }
+}
+
+### Login creates an HttpOnly cookie session
+POST {{InsurancePolicyPortalDemo_HostAddress}}/api/users/login
+Content-Type: application/json
+
+{
+  "username": "joey.portal",
+  "password": "PortalPass123!"
+}
+
+### Current session profile
+GET {{InsurancePolicyPortalDemo_HostAddress}}/api/users/me
+
+### Read the authenticated user's own resource
+GET {{InsurancePolicyPortalDemo_HostAddress}}/api/users/{{userId}}
+
+### Logout clears the session
+POST {{InsurancePolicyPortalDemo_HostAddress}}/api/users/logout

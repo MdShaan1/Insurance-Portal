@@ -2,14 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import PasswordInput from "@/components/PasswordInput";
-
-import { login } from "@/src/lib/api";
+import { useApiClient } from "@/src/lib/ApiClientProvider";
 
 export default function LoginPage() {
+  const api = useApiClient();
+  const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
@@ -56,20 +58,12 @@ export default function LoginPage() {
     try {
       setIsLoggingIn(true);
 
-      await login({
+      await api.login({
         username: username.trim(),
         password,
       });
 
-      /*
-       * Login API call was successful.
-       *
-       * JWT/session authentication has not been
-       * implemented yet in the current project.
-       *
-       * For the current demo we redirect to home.
-       */
-      window.location.href = "/";
+      router.push("/");
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -102,7 +96,7 @@ export default function LoginPage() {
 
             {/* API Error */}
             {errorMessage && (
-              <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div role="alert" className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {errorMessage}
               </div>
             )}
@@ -110,10 +104,11 @@ export default function LoginPage() {
             <form
               onSubmit={handleLogin}
               className="space-y-6"
+              noValidate
             >
               {/* Username */}
               <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-900">
+                <label htmlFor="username" className="mb-2 block text-sm font-semibold text-gray-900">
                   Username{" "}
                   <span className="text-red-600">
                     *
@@ -121,6 +116,8 @@ export default function LoginPage() {
                 </label>
 
                 <input
+                  id="username"
+                  name="username"
                   type="text"
                   value={username}
                   onChange={(event) =>
@@ -149,6 +146,7 @@ export default function LoginPage() {
 
               {/* Password */}
               <PasswordInput
+                id="password"
                 label="Password"
                 value={password}
                 onChange={(event) =>

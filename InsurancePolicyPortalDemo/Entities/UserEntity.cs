@@ -18,4 +18,6 @@ public class UserEntity
     public string Country { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public List<SecurityQuestionEntity> SecurityQuestions { get; set; } = new();
+    public int? PolicyHolderId { get; set; }
+    public PolicyHolderEntity? PolicyHolder { get; set; }
 }

@@ -1,285 +1,185 @@
-﻿using InsurancePolicyPortalDemo.DTOs;
+using InsurancePolicyPortalDemo.DTOs;
 using InsurancePolicyPortalDemo.Models;
 using InsurancePolicyPortalDemo.Repositories;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 
 namespace InsurancePolicyPortalDemo.Services;
 
-public class UserService : IUserService
+public sealed class UserService(
+    IUserRepository userRepository,
+    IPolicyHolderRepository policyHolderRepository,
+    IPasswordHasher<User> passwordHasher,
+    IOptions<SecurityQuestionOptions> securityQuestionOptions) : IUserService
 {
-    private readonly IUserRepository _userRepository;
-
-    private readonly IPolicyHolderRepository _policyHolderRepository;
-
-    private readonly PasswordHasher<User> _passwordHasher;
-
-
-    public UserService(
-        IUserRepository userRepository,
-        IPolicyHolderRepository policyHolderRepository)
-    {
-        _userRepository = userRepository;
-
-        _policyHolderRepository = policyHolderRepository;
-
-        _passwordHasher = new PasswordHasher<User>();
-    }
-
+    private static string Normalize(string? value) => value?.Trim() ?? string.Empty;
 
     public async Task<bool> VerifyPolicyHolderAsync(
-        PersonalInformationRequest request)
+        PersonalInformationRequest request,
+        CancellationToken cancellationToken = default)
     {
-        var policyHolder =
-            await _policyHolderRepository
-                .GetByPolicyNumberAsync(
-                    request.PolicyNumber
-                );
+        ArgumentNullException.ThrowIfNull(request);
+        var policyHolder = await policyHolderRepository.GetByPolicyNumberAsync(
+            Normalize(request.PolicyNumber),
+            cancellationToken);
 
-        if (policyHolder == null)
+        var isVerified = policyHolder is not null
+            && Matches(policyHolder.SSN, request.SSN)
+            && Matches(policyHolder.PolicyNumber, request.PolicyNumber)
+            && Matches(policyHolder.FirstName, request.FirstName)
+            && Matches(policyHolder.LastName, request.LastName)
+            && Matches(policyHolder.DateOfBirth, request.DateOfBirth)
+            && Matches(policyHolder.ZipCode, request.ZipCode);
+
+        if (!isVerified)
         {
             return false;
         }
 
+        if (await userRepository.GetByPolicyNumberAsync(
+                Normalize(request.PolicyNumber),
+                cancellationToken) is not null)
+        {
+            throw new RegistrationConflictException(
+                "personalInformation.policyNumber",
+                "An account has already been created for this policy number.");
+        }
 
-        bool isValid =
-            policyHolder.SSN.Equals(
-                request.SSN.Trim(),
-                StringComparison.OrdinalIgnoreCase
-            )
-            &&
-            policyHolder.PolicyNumber.Equals(
-                request.PolicyNumber.Trim(),
-                StringComparison.OrdinalIgnoreCase
-            )
-            &&
-            policyHolder.FirstName.Equals(
-                request.FirstName.Trim(),
-                StringComparison.OrdinalIgnoreCase
-            )
-            &&
-            policyHolder.LastName.Equals(
-                request.LastName.Trim(),
-                StringComparison.OrdinalIgnoreCase
-            )
-            &&
-            policyHolder.DateOfBirth.Equals(
-                request.DateOfBirth.Trim(),
-                StringComparison.OrdinalIgnoreCase
-            )
-            &&
-            policyHolder.ZipCode.Equals(
-                request.ZipCode.Trim(),
-                StringComparison.OrdinalIgnoreCase
-            );
-
-
-        return isValid;
+        return true;
     }
 
-
     public async Task<UserResponse> RegisterAsync(
-        PersonalInformationRequest personalInformation,
-        AccountInformationRequest accountInformation,
-        SecurityInformationRequest securityInformation,
-        ContactInformationRequest contactInformation)
+        RegistrationRequest request,
+        CancellationToken cancellationToken = default)
     {
-        // Verify policyholder again before creating account
+        ArgumentNullException.ThrowIfNull(request);
 
-        var isPolicyHolderValid =
-            await VerifyPolicyHolderAsync(
-                personalInformation
-            );
+        var personal = request.PersonalInformation;
+        var account = request.AccountInformation;
+        var security = request.SecurityInformation;
+        var contact = request.ContactInformation;
 
-        if (!isPolicyHolderValid)
+        var policyHolder = await policyHolderRepository.GetByPolicyNumberAsync(
+            Normalize(personal.PolicyNumber),
+            cancellationToken);
+
+        if (policyHolder is null
+            || !Matches(policyHolder.SSN, personal.SSN)
+            || !Matches(policyHolder.PolicyNumber, personal.PolicyNumber)
+            || !Matches(policyHolder.FirstName, personal.FirstName)
+            || !Matches(policyHolder.LastName, personal.LastName)
+            || !Matches(policyHolder.DateOfBirth, personal.DateOfBirth)
+            || !Matches(policyHolder.ZipCode, personal.ZipCode))
         {
-            throw new InvalidOperationException(
-                "Policyholder verification failed."
-            );
+            throw new PolicyholderValidationException("personalInformation");
         }
 
-
-        // Check if an account already exists
-        // for this policy number
-
-        var existingAccount =
-            await _userRepository.GetByPolicyNumberAsync(
-                personalInformation.PolicyNumber.Trim()
-            );
-
-        if (existingAccount != null)
+        var policyNumber = Normalize(personal.PolicyNumber);
+        if (await userRepository.GetByPolicyNumberAsync(policyNumber, cancellationToken) is not null)
         {
-            throw new InvalidOperationException(
-                "An account has already been created for this policy number."
-            );
+            throw new RegistrationConflictException(
+                "personalInformation.policyNumber",
+                "An account has already been created for this policy number.");
         }
 
-
-        // Check username uniqueness
-
-        var existingUser =
-            await _userRepository.GetByUsernameAsync(
-                accountInformation.Username.Trim()
-            );
-
-        if (existingUser != null)
+        var username = Normalize(account.Username);
+        if (await userRepository.GetByUsernameAsync(username, cancellationToken) is not null)
         {
-            throw new InvalidOperationException(
-                "Username already exists."
-            );
+            throw new RegistrationConflictException(
+                "accountInformation.username",
+                "Username already exists.");
         }
-
-
-        // Create User object
 
         var user = new User
         {
-            // Personal Information
+            PolicyHolderId = policyHolder.Id,
+            PolicyNumber = policyNumber,
+            FirstName = Normalize(personal.FirstName),
+            LastName = Normalize(personal.LastName),
+            DateOfBirth = Normalize(personal.DateOfBirth),
+            ZipCode = Normalize(personal.ZipCode),
+            Username = username,
+            Email = Normalize(contact.Email),
+            Phone = Normalize(contact.Phone),
+            StreetAddress = Normalize(contact.StreetAddress),
+            StreetAddressLine2 = Normalize(contact.StreetAddressLine2),
+            City = Normalize(contact.City),
+            State = Normalize(contact.State),
+            Country = Normalize(contact.Country),
+        };
 
-            PolicyNumber =
-                personalInformation.PolicyNumber.Trim(),
-
-            FirstName =
-                personalInformation.FirstName.Trim(),
-
-            LastName =
-                personalInformation.LastName.Trim(),
-
-            DateOfBirth =
-                personalInformation.DateOfBirth.Trim(),
-
-            ZipCode =
-                personalInformation.ZipCode.Trim(),
-
-
-            // Account Information
-
-            Username =
-                accountInformation.Username.Trim(),
-
-
-            // Contact Information
-
-            Email =
-                contactInformation.Email.Trim(),
-
-            Phone =
-                contactInformation.Phone.Trim(),
-
-            StreetAddress =
-                contactInformation.StreetAddress.Trim(),
-
-            StreetAddressLine2 =
-                contactInformation.StreetAddressLine2.Trim(),
-
-            City =
-                contactInformation.City.Trim(),
-
-            State =
-                contactInformation.State.Trim(),
-
-            Country =
-                contactInformation.Country.Trim(),
-
-
-            // Security Information
-
-            SecurityQuestions = new List<SecurityQuestion>
+        user.PasswordHash = passwordHasher.HashPassword(user, account.Password);
+        user.SecurityQuestions =
+        [
+            new SecurityQuestion
             {
-                new SecurityQuestion
-                {
-                    Question = "What is your pet name?",
-                    Answer = securityInformation.PetName.Trim()
-                },
-
-                new SecurityQuestion
-                {
-                    Question = "What is your childhood friend's name?",
-                    Answer = securityInformation.ChildhoodFriendName.Trim()
-                }
+                Question = securityQuestionOptions.Value.PetName,
+                Answer = passwordHasher.HashPassword(user, Normalize(security.PetName))
+            },
+            new SecurityQuestion
+            {
+                Question = securityQuestionOptions.Value.ChildhoodFriendName,
+                Answer = passwordHasher.HashPassword(user, Normalize(security.ChildhoodFriendName))
             }
-        };
-
-
-        // Hash password before storing it
-
-        user.PasswordHash =
-            _passwordHasher.HashPassword(
-                user,
-                accountInformation.Password
-            );
-
-
-        // Save user to database/repository
-
-        var createdUser =
-            await _userRepository.AddAsync(user);
-
-
-        // Return user information without password
-
-        return new UserResponse
-        {
-            Id = createdUser.Id,
-
-            FirstName = createdUser.FirstName,
-
-            LastName = createdUser.LastName,
-
-            PolicyNumber = createdUser.PolicyNumber,
-
-            Username = createdUser.Username,
-
-            Email = createdUser.Email,
-
-            CreatedAt = createdUser.CreatedAt
-        };
+        ];
+        var createdUser = await userRepository.AddAsync(user, cancellationToken);
+        return ToResponse(createdUser);
     }
-
 
     public async Task<UserResponse?> LoginAsync(
-        UserLoginRequest request)
+        UserLoginRequest request,
+        CancellationToken cancellationToken = default)
     {
-        var user =
-            await _userRepository.GetByUsernameAsync(
-                request.Username
-            );
-
-        if (user == null)
+        ArgumentNullException.ThrowIfNull(request);
+        var username = Normalize(request.Username);
+        if (username.Length == 0 || string.IsNullOrEmpty(request.Password))
         {
             return null;
         }
 
-
-        var result =
-            _passwordHasher.VerifyHashedPassword(
-                user,
-                user.PasswordHash,
-                request.Password
-            );
-
-
-        if (result ==
-            PasswordVerificationResult.Failed)
+        var user = await userRepository.GetByUsernameAsync(username, cancellationToken);
+        if (user is null)
         {
             return null;
         }
 
-
-        return new UserResponse
+        var result = passwordHasher.VerifyHashedPassword(
+            user,
+            user.PasswordHash,
+            request.Password);
+        if (result == PasswordVerificationResult.Failed)
         {
-            Id = user.Id,
+            return null;
+        }
 
-            FirstName = user.FirstName,
+        if (result == PasswordVerificationResult.SuccessRehashNeeded)
+        {
+            user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
+            await userRepository.UpdateAsync(user, cancellationToken);
+        }
 
-            LastName = user.LastName,
-
-            PolicyNumber = user.PolicyNumber,
-
-            Username = user.Username,
-
-            Email = user.Email,
-
-            CreatedAt = user.CreatedAt
-        };
+        return ToResponse(user);
     }
+
+    public async Task<UserResponse?> GetByIdAsync(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        var user = await userRepository.GetByIdAsync(id, cancellationToken);
+        return user is null ? null : ToResponse(user);
+    }
+
+    private static bool Matches(string? actual, string? supplied) =>
+        string.Equals(Normalize(actual), Normalize(supplied), StringComparison.OrdinalIgnoreCase);
+
+    private static UserResponse ToResponse(User user) => new()
+    {
+        Id = user.Id,
+        FirstName = user.FirstName,
+        LastName = user.LastName,
+        PolicyNumber = user.PolicyNumber,
+        Username = user.Username,
+        Email = user.Email,
+        CreatedAt = user.CreatedAt
+    };
 }

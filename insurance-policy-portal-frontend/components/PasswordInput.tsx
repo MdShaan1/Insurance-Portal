@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 interface PasswordInputProps {
+  id?: string;
   label: string;
   value: string;
   onChange: (
@@ -16,6 +17,7 @@ interface PasswordInputProps {
 }
 
 export default function PasswordInput({
+  id,
   label,
   value,
   onChange,
@@ -33,7 +35,7 @@ export default function PasswordInput({
 
   return (
     <div>
-      <label className="mb-2 block text-sm font-semibold text-gray-900">
+      <label htmlFor={id} className="mb-2 block text-sm font-semibold text-gray-900">
         {label}{" "}
         {required && (
           <span className="text-red-600">*</span>
@@ -41,11 +43,16 @@ export default function PasswordInput({
       </label>
 
       <input
+        id={id}
+        name={id}
         type={showPassword ? "text" : "password"}
         value={value}
         onChange={onChange}
         onBlur={onBlur}
         placeholder={placeholder}
+        required={required}
+        aria-invalid={hasError}
+        aria-describedby={hasError && id ? `${id}-error` : undefined}
         className={`w-full rounded-lg border bg-white px-4 py-3 text-gray-900 outline-none transition ${
           hasError
             ? "border-red-500 ring-1 ring-red-500"
@@ -67,7 +74,7 @@ export default function PasswordInput({
       </label>
 
       {hasError && (
-        <p className="mt-1 text-sm font-medium text-red-600">
+        <p id={id ? `${id}-error` : undefined} className="mt-1 text-sm font-medium text-red-600">
           {error}
         </p>
       )}

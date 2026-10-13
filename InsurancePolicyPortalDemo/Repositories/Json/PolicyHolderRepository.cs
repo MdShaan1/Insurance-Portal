@@ -18,13 +18,19 @@ public class PolicyHolderRepository : IPolicyHolderRepository
         );
     }
     public async Task<PolicyHolder?> GetByPolicyNumberAsync(
-        string policyNumber)
+        string policyNumber,
+        CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(policyNumber))
+        {
+            return null;
+        }
+
         if (!File.Exists(_filePath))
         {
             return null;
         }
-        var json = await File.ReadAllTextAsync(_filePath);
+        var json = await File.ReadAllTextAsync(_filePath, cancellationToken);
 
         if (string.IsNullOrWhiteSpace(json))
         {

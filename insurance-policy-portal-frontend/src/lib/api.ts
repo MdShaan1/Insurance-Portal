@@ -25,6 +25,8 @@ export interface SecurityInformation {
   childhoodFriendName: string;
 }
 
+export type SecurityQuestionLabels = Record<keyof SecurityInformation, string>;
+
 export interface ContactInformation {
   email: string;
   phone: string;
@@ -48,22 +50,52 @@ export interface UserLoginRequest {
   password: string;
 }
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly fieldErrors: Record<string, string[]> = {},
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 // ============================================================
 // HELPER
 // ============================================================
 
-async function getErrorMessage(response: Response) {
+async function throwApiError(response: Response): Promise<never> {
+  let data: {
+    title?: string;
+    detail?: string;
+    message?: string;
+    errors?: Record<string, string[]>;
+  } = {};
   try {
-    const data = await response.json();
-
-    return (
-      data?.message ||
-      data?.title ||
-      "Something went wrong."
-    );
+    data = await response.json() as typeof data;
   } catch {
-    return "Something went wrong.";
+    throw new ApiError(`The server returned an invalid error response (${response.status}).`, response.status);
   }
+  throw new ApiError(
+    data.detail ?? data.message ?? data.title ?? `Request failed (${response.status}).`,
+    response.status,
+    data.errors ?? {},
+  );
+}
+
+export async function getSecurityQuestionLabels(): Promise<SecurityQuestionLabels> {
+  const response = await fetch(`${API_URL}/api/users/security-questions`, {
+    headers: {
+      Accept: "application/json, application/problem+json",
+    },
+  });
+
+  if (!response.ok) {
+    return throwApiError(response);
+  }
+
+  return response.json() as Promise<SecurityQuestionLabels>;
 }
 
 // ============================================================
@@ -74,19 +106,20 @@ export async function verifyPolicyholder(
   data: PolicyholderVerificationRequest
 ) {
   const response = await fetch(
-    `${API_URL}/api/User/verify-policyholder`,
+    `${API_URL}/api/users/verify-policyholder`,
     {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
-        Accept: "*/*",
+        Accept: "application/json, application/problem+json",
       },
       body: JSON.stringify(data),
     }
   );
 
   if (!response.ok) {
-    throw new Error(await getErrorMessage(response));
+    return throwApiError(response);
   }
 
   return response.json();
@@ -100,19 +133,20 @@ export async function signUp(
   data: RegistrationRequest
 ) {
   const response = await fetch(
-    `${API_URL}/api/User/SignUp`,
+    `${API_URL}/api/users/register`,
     {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
-        Accept: "*/*",
+        Accept: "application/json, application/problem+json",
       },
       body: JSON.stringify(data),
     }
   );
 
   if (!response.ok) {
-    throw new Error(await getErrorMessage(response));
+    return throwApiError(response);
   }
 
   return response.json();
@@ -126,20 +160,35 @@ export async function login(
   data: UserLoginRequest
 ) {
   const response = await fetch(
-    `${API_URL}/api/User/login`,
+    `${API_URL}/api/users/login`,
     {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
-        Accept: "*/*",
+        Accept: "application/json, application/problem+json",
       },
       body: JSON.stringify(data),
     }
   );
 
   if (!response.ok) {
-    throw new Error(await getErrorMessage(response));
+    return throwApiError(response);
   }
 
   return response.json();
 }
+
+export interface ApiClient {
+  getSecurityQuestionLabels: typeof getSecurityQuestionLabels;
+  verifyPolicyholder: typeof verifyPolicyholder;
+  signUp: typeof signUp;
+  login: typeof login;
+}
+
+export const apiClient: ApiClient = {
+  getSecurityQuestionLabels,
+  verifyPolicyholder,
+  signUp,
+  login,
+};

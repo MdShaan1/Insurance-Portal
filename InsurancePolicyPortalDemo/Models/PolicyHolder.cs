@@ -9,5 +9,5 @@ public class PolicyHolder
     public string ZipCode { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string Phone { get; set; } = string.Empty;
-    public string Id { get; set; } = string.Empty;
+    public int Id { get; set; }
 }

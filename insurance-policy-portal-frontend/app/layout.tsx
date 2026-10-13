@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ApiClientProvider } from "@/src/lib/ApiClientProvider";
+import { apiClient } from "@/src/lib/api";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -23,7 +25,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <ApiClientProvider client={apiClient}>
+          {children}
+        </ApiClientProvider>
+      </body>
     </html>
   );
 }

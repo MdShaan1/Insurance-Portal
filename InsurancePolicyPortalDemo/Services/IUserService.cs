@@ -5,14 +5,18 @@ namespace InsurancePolicyPortalDemo.Services;
 public interface IUserService
 {
     Task<bool> VerifyPolicyHolderAsync(
-        PersonalInformationRequest request);
+        PersonalInformationRequest request,
+        CancellationToken cancellationToken = default);
 
     Task<UserResponse> RegisterAsync(
-        PersonalInformationRequest personalInformation,
-        AccountInformationRequest accountInformation,
-        SecurityInformationRequest securityInformation,
-        ContactInformationRequest contactInformation);
+        RegistrationRequest request,
+        CancellationToken cancellationToken = default);
 
     Task<UserResponse?> LoginAsync(
-        UserLoginRequest request);
+        UserLoginRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<UserResponse?> GetByIdAsync(
+        Guid id,
+        CancellationToken cancellationToken = default);
 }

@@ -1,15 +1,39 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render as renderUi, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactElement } from "react";
 
 import LoginPage from "@/app/login/page";
-import { login } from "@/src/lib/api";
+import { ApiClientProvider } from "@/src/lib/ApiClientProvider";
+import { apiClient, login } from "@/src/lib/api";
 
-vi.mock("@/src/lib/api", () => ({
-  login: vi.fn(),
+const mockPush = vi.hoisted(() => vi.fn());
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: mockPush }),
 }));
 
+vi.mock("@/src/lib/api", () => {
+  const login = vi.fn();
+
+  return {
+    apiClient: {
+      getSecurityQuestionLabels: vi.fn(),
+      verifyPolicyholder: vi.fn(),
+      signUp: vi.fn(),
+      login,
+    },
+    login,
+  };
+});
+
 const mockedLogin = vi.mocked(login);
+const render = (ui: ReactElement) =>
+  renderUi(
+    <ApiClientProvider client={apiClient}>
+      {ui}
+    </ApiClientProvider>,
+  );
 
 describe("LoginPage", () => {
   beforeEach(() => {
@@ -127,6 +151,7 @@ describe("LoginPage", () => {
       username: "testuser",
       password: "Password123!",
     });
+    expect(mockPush).toHaveBeenCalledWith("/");
   });
 
   it("should trim whitespace from username before calling login", async () => {
