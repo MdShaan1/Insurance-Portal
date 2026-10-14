@@ -1,4 +1,6 @@
+
 using System.ComponentModel.DataAnnotations;
+
 namespace InsurancePolicyPortalDemo.DTOs;
 
 public sealed class ContactInformationRequest : IValidatableObject
@@ -42,8 +44,6 @@ public sealed class ContactInformationRequest : IValidatableObject
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         if (string.IsNullOrWhiteSpace(StreetAddress))
-        {
             yield return new ValidationResult("Street address is required.", new[] { nameof(StreetAddress) });
-        }
     }
 }

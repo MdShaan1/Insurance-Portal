@@ -1,3 +1,4 @@
+
 using System.Security.Claims;
 using InsurancePolicyPortalDemo.DTOs;
 using InsurancePolicyPortalDemo.Services;
@@ -11,9 +12,7 @@ namespace InsurancePolicyPortalDemo.Controllers;
 
 [ApiController]
 [Route("api/users")]
-public sealed class UserController(
-    IUserService userService,
-    IOptions<SecurityQuestionOptions> securityQuestionOptions) : ControllerBase
+public sealed class UserController(IUserService userService, IOptions<SecurityQuestionOptions> securityQuestionOptions) : ControllerBase
 {
     [HttpGet("security-questions")]
     [ProducesResponseType(typeof(IReadOnlyDictionary<string, string>), StatusCodes.Status200OK)]
@@ -32,9 +31,7 @@ public sealed class UserController(
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> VerifyPolicyHolder(
-        [FromBody] PersonalInformationRequest request,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> VerifyPolicyHolder([FromBody] PersonalInformationRequest request, CancellationToken cancellationToken)
     {
         if (!await userService.VerifyPolicyHolderAsync(request, cancellationToken))
         {
@@ -49,9 +46,7 @@ public sealed class UserController(
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> Register(
-        [FromBody] RegistrationRequest request,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> Register([FromBody] RegistrationRequest request, CancellationToken cancellationToken)
     {
         var user = await userService.RegisterAsync(request, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = user.Id }, user);
@@ -60,9 +55,7 @@ public sealed class UserController(
     [HttpPost("login")]
     [ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> Login(
-        [FromBody] UserLoginRequest request,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> Login([FromBody] UserLoginRequest request, CancellationToken cancellationToken)
     {
         var user = await userService.LoginAsync(request, cancellationToken);
         if (user is null)
@@ -82,19 +75,14 @@ public sealed class UserController(
             new Claim(ClaimTypes.Name, user.Username),
             new Claim("policyNumber", user.PolicyNumber)
         };
-        var principal = new ClaimsPrincipal(new ClaimsIdentity(
-            claims,
-            CookieAuthenticationDefaults.AuthenticationScheme));
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme));
 
-        await HttpContext.SignInAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            principal,
-            new AuthenticationProperties
-            {
-                IsPersistent = false,
-                AllowRefresh = true,
-                ExpiresUtc = DateTimeOffset.UtcNow.AddHours(2)
-            });
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal, new AuthenticationProperties
+        {
+            IsPersistent = false,
+            AllowRefresh = true,
+            ExpiresUtc = DateTimeOffset.UtcNow.AddHours(2)
+        });
 
         return Ok(user);
     }
@@ -122,8 +110,7 @@ public sealed class UserController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
-        if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId)
-            || currentUserId != id)
+        if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId) || currentUserId != id)
         {
             return NotFound();
         }

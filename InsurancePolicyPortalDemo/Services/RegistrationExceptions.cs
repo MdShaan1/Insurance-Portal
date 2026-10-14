@@ -5,7 +5,6 @@ public sealed class PolicyholderValidationException(string field)
 {
     public string Field { get; } = field;
 }
-
 public sealed class RegistrationConflictException(string field, string message)
     : Exception(message)
 {

@@ -3,54 +3,42 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import PasswordInput from "@/components/PasswordInput";
 import { useApiClient } from "@/src/lib/ApiClientProvider";
-
 export default function LoginPage() {
   const api = useApiClient();
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-
   const [usernameTouched, setUsernameTouched] =
     useState(false);
-
   const [passwordTouched, setPasswordTouched] =
     useState(false);
-
   const [errorMessage, setErrorMessage] =
     useState("");
-
   const [isLoggingIn, setIsLoggingIn] =
     useState(false);
-
   const usernameError =
     usernameTouched && !username.trim()
       ? "Please enter Username."
       : "";
-
   const passwordError =
     passwordTouched && !password
       ? "Please enter Password."
       : "";
-
   const handleLogin = async (
     event: React.FormEvent<HTMLFormElement>
   ) => {
     event.preventDefault();
-
     setErrorMessage("");
-
     setUsernameTouched(true);
     setPasswordTouched(true);
-
     if (!username.trim()) {
       return;
-    }
 
+    }
     if (!password) {
       return;
     }
@@ -78,7 +66,6 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen flex-col bg-gray-50">
       <Header />
-
       <div className="flex flex-1 items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
           <div className="rounded-2xl bg-white p-8 shadow-lg">
@@ -87,25 +74,22 @@ export default function LoginPage() {
               <h1 className="text-3xl font-bold text-gray-900">
                 Sign In
               </h1>
-
               <p className="mt-2 text-sm text-gray-600">
                 Sign in to access your Insurance Policy
                 Portal account.
               </p>
             </div>
-
             {/* API Error */}
             {errorMessage && (
               <div role="alert" className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {errorMessage}
               </div>
             )}
-
             <form
               onSubmit={handleLogin}
               className="space-y-6"
               noValidate
-            >
+                          >
               {/* Username */}
               <div>
                 <label htmlFor="username" className="mb-2 block text-sm font-semibold text-gray-900">
@@ -114,7 +98,6 @@ export default function LoginPage() {
                     *
                   </span>
                 </label>
-
                 <input
                   id="username"
                   name="username"

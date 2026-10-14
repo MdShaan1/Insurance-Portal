@@ -1,4 +1,6 @@
+
 using System.ComponentModel.DataAnnotations;
+
 namespace InsurancePolicyPortalDemo.DTOs;
 
 public sealed class AccountInformationRequest : IValidatableObject
@@ -18,41 +20,18 @@ public sealed class AccountInformationRequest : IValidatableObject
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
-        if (string.IsNullOrEmpty(Password))
-        {
-            yield break;
-        }
+        if (string.IsNullOrEmpty(Password)) yield break;
 
         if (!Password.Any(char.IsUpper))
-        {
-            yield return new ValidationResult(
-                "Password must contain at least one uppercase letter.",
-                new[] { nameof(Password) }
-            );
-        }
+            yield return new ValidationResult("Password must contain at least one uppercase letter.", new[] { nameof(Password) });
 
         if (!Password.Any(char.IsLower))
-        {
-            yield return new ValidationResult(
-                "Password must contain at least one lowercase letter.",
-                new[] { nameof(Password) }
-            );
-        }
+            yield return new ValidationResult("Password must contain at least one lowercase letter.", new[] { nameof(Password) });
 
         if (!Password.Any(character => "@#$%!".Contains(character)))
-        {
-            yield return new ValidationResult(
-                "Password must contain at least one special character (@, #, $, %, or !).",
-                new[] { nameof(Password) }
-            );
-        }
+            yield return new ValidationResult("Password must contain at least one special character (@, #, $, %, or !).", new[] { nameof(Password) });
 
         if (Password.Length < 8)
-        {
-            yield return new ValidationResult(
-                "Password must contain at least 8 characters.",
-                new[] { nameof(Password) }
-            );
-        }
+            yield return new ValidationResult("Password must contain at least 8 characters.", new[] { nameof(Password) });
     }
 }

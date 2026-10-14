@@ -50,14 +50,10 @@ public class UserServiceTests
             );
     }
 
-    // =========================================================
     // 1. POLICYHOLDER VALIDATION - SUCCESS CASE
-    // =========================================================
-
     [Test]
     public async Task VerifyPolicyHolder_WithValidDetails_ReturnsTrue()
     {
-        // Arrange
 
         var request = new PersonalInformationRequest
         {
@@ -87,26 +83,15 @@ public class UserServiceTests
                 repo.GetByPolicyNumberAsync("VA6666667", It.IsAny<CancellationToken>()))
             .ReturnsAsync(policyHolder);
 
-        // Act
-
         var result =
             await _userService.VerifyPolicyHolderAsync(request);
 
-        // Assert
-
         Assert.That(result, Is.True);
     }
-
-
-    // =========================================================
     // 2. REGISTRATION - SUCCESS CASE
-    // =========================================================
-
     [Test]
     public async Task Register_WithValidDetails_ReturnsUserResponse()
     {
-        // Arrange
-
         var personalInformation =
             new PersonalInformationRequest
             {
@@ -203,8 +188,6 @@ public class UserServiceTests
                 securityInformation,
                 contactInformation));
 
-        // Assert
-
         Assert.That(result, Is.Not.Null);
 
         Assert.That(
@@ -243,41 +226,26 @@ public class UserServiceTests
             Is.EqualTo(PasswordVerificationResult.Success));
     }
 
-
-    // =========================================================
     // 3. LOGIN - SUCCESS CASE
-    // =========================================================
 
     [Test]
     public async Task Login_WithValidCredentials_ReturnsUserResponse()
     {
-        // Arrange
 
         var user = new User
         {
             Id = Guid.NewGuid(),
-
             PolicyNumber = "VA6666667",
-
             FirstName = "Chandler",
-
             LastName = "Bing",
-
             DateOfBirth = "11/20/2024",
-
             ZipCode = "99501",
-
             Username = "chandler123",
-
             Email = "chandler@example.com",
-
             Phone = "9004008000",
-
             CreatedAt = DateTime.UtcNow
         };
-
         // Create password hash
-
         var passwordHasher =
             new PasswordHasher<User>();
 
@@ -286,23 +254,18 @@ public class UserServiceTests
                 user,
                 "Password123!"
             );
-
         // Mock repository
-
         _userRepositoryMock
             .Setup(repo =>
                 repo.GetByUsernameAsync("chandler123", It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
-
         var loginRequest =
             new UserLoginRequest
             {
                 Username = "chandler123",
                 Password = "Password123!"
             };
-
         // Act
-
         var result =
             await _userService.LoginAsync(loginRequest);
 
@@ -330,7 +293,6 @@ public class UserServiceTests
             result.Email,
             Is.EqualTo("chandler@example.com"));
     }
-
     [Test]
     public async Task VerifyPolicyHolder_WithBlankRequest_ReturnsFalse()
     {
@@ -343,7 +305,6 @@ public class UserServiceTests
             DateOfBirth = "11/20/2024",
             ZipCode = "99501"
         };
-
         var result = await _userService.VerifyPolicyHolderAsync(request);
 
         Assert.That(result, Is.False);
@@ -399,7 +360,6 @@ public class UserServiceTests
             DateOfBirth = "11/20/2024",
             ZipCode = "99501"
         };
-
         _policyHolderRepositoryMock
             .Setup(repo => repo.GetByPolicyNumberAsync(policyNumber, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PolicyHolder
@@ -712,7 +672,6 @@ public class UserServiceTests
             Username = "   ",
             Password = ""
         };
-
         var result = await _userService.LoginAsync(request);
 
         Assert.That(result, Is.Null);
