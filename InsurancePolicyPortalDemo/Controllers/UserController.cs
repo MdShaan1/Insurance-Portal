@@ -1,4 +1,3 @@
-
 using System.Security.Claims;
 using InsurancePolicyPortalDemo.DTOs;
 using InsurancePolicyPortalDemo.Services;
